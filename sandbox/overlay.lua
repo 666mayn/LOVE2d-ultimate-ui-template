@@ -4,22 +4,24 @@
 -- init.lua hands it ready-made text via `info`:
 --
 --   info.strip   string   always-visible line, bottom-left
+--   info.hints   table?   extra hint lines stacked directly above the strip (editor mode)
 --   info.toast   string?  most recent message (fades out), above the strip
 --   info.rows    table?   F1 panel rows: { heading = "..." } or { key =, value = }
 --   info.log     table?   event-log lines, oldest first
 --
--- It uses its own small font and push("all")/pop, so it can't disturb the
+-- It uses the template font (via sandbox/theme.lua) and push("all")/pop, so it can't disturb the
 -- UI being tested (colors, fonts, transforms all restored afterwards).
 
-local overlay = {}
+local theme = require("sandbox.theme")
 
-local font
+local overlay = {}
 
 local COLORS = {
     heading = { 1.00, 0.76, 0.12 },
     key     = { 0.50, 1.00, 0.60 },
     value   = { 0.92, 0.92, 0.92 },
     strip   = { 0.85, 0.85, 0.85 },
+    hint    = { 0.55, 0.90, 1.00 },
     toast   = { 1.00, 0.76, 0.12 },
     log     = { 0.70, 0.78, 0.90 },
 }
@@ -35,15 +37,15 @@ local function text(str, x, y, c, alpha)
 end
 
 function overlay.draw(info)
-    if not font then font = love.graphics.newFont(13) end
+    local font = theme.font()
 
     love.graphics.push("all")
     love.graphics.origin()
     love.graphics.setFont(font)
 
     local w, h = love.graphics.getDimensions()
-    local lh = font:getHeight() + 3
-    local pad = 8
+    local lh = font:getHeight() + 4
+    local pad = math.max(8, math.floor(font:getHeight() / 2))
     local y = h - pad
 
     -- Status strip (bottom-left)
@@ -51,6 +53,16 @@ function overlay.draw(info)
     y = y - (lh + pad)
     box(pad, y, stripW, lh + pad)
     text(info.strip, pad * 2, y + pad / 2, COLORS.strip)
+
+    -- Hint lines (editor mode), bottom line closest to the strip
+    if info.hints then
+        for i = #info.hints, 1, -1 do
+            local hw = font:getWidth(info.hints[i]) + pad * 2
+            y = y - (lh + pad) - 2
+            box(pad, y, hw, lh + pad)
+            text(info.hints[i], pad * 2, y + pad / 2, COLORS.hint)
+        end
+    end
 
     -- Toast (fades during its last second)
     if info.toast then
@@ -76,20 +88,28 @@ function overlay.draw(info)
         end
     end
 
-    -- F1 panel (top-right)
+    -- F1 panel (top-right). Two even columns -- key, then description -- sized to
+    -- the widest entry so nothing runs off the edge.
     if info.rows then
-        local panelW = 400
-        local keyW = 118
+        local gap = pad * 2
+        local keyW, valW = 0, 0
+        for _, row in ipairs(info.rows) do
+            if not row.heading then
+                keyW = math.max(keyW, font:getWidth(row.key))
+                valW = math.max(valW, font:getWidth(row.value))
+            end
+        end
+        local panelW = math.min(w - pad * 2, pad * 2 + keyW + gap + valW)
         local x = w - panelW - pad
         local panelH = #info.rows * lh + pad * 2
         box(x, pad, panelW, panelH)
         for i, row in ipairs(info.rows) do
-            local ry = pad * 2 + (i - 1) * lh - 2
+            local ry = pad + pad / 2 + (i - 1) * lh
             if row.heading then
                 text(row.heading, x + pad, ry, COLORS.heading)
             else
                 text(row.key, x + pad, ry, COLORS.key)
-                text(row.value, x + pad + keyW, ry, COLORS.value)
+                text(row.value, x + pad + keyW + gap, ry, COLORS.value)
             end
         end
     end

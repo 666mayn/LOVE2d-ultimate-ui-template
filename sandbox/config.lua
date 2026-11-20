@@ -15,7 +15,7 @@ return {
     -- the game and land back on the same screen. F6 toggles it at runtime.
     autoReload = true,
     watchInterval = 0.5,                           -- seconds between disk checks
-    watchIgnore = { ".git", "fonts" },             -- folders never scanned
+    watchIgnore = { ".git", "fonts", "exports" },   -- folders never scanned (exports/ is written by the editor)
 
     -- Window sizes F2 cycles through (anything bigger than your desktop is
     -- skipped). Good for checking the uiScale math at awkward aspect ratios.
@@ -26,6 +26,18 @@ return {
         { 800, 600 },    -- small 4:3
         { 1680, 720 },   -- ultrawide-ish
         { 640, 360 },    -- the minimum conf.lua allows
+    },
+
+    -- Test background shown behind widget screens (the main menu) while you
+    -- work in the sandbox, so you can judge text/buttons over game art.
+    -- The first time a screen is seen it gets this; after that your own choice
+    -- (F11 edit mode: B / [ ] / - =) is remembered. Set to nil to start with none.
+    --   image  a file in background/ (any name); leave it out to use the first image found there
+    --   blur   0 (sharp) .. 10      dim  0..1 black overlay
+    defaultBackground = {
+        image = nil,
+        blur  = 8,
+        dim   = 0.30,
     },
 
     -- Hotkeys. Each action can have several keys (LOVE KeyConstants).
@@ -42,6 +54,7 @@ return {
         wipe    = { "f8" },
         saveDir = { "f9" },
         hide    = { "f10" },
+        edit    = { "f11" },
         shot    = { "f12" },
     },
 

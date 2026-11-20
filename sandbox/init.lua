@@ -15,6 +15,8 @@
 --         screens.lua  jump-to-screen logic
 --         overlay.lua  drawing: status strip, F1 panel, log
 --         watcher.lua  auto-reload on file change
+--         editor.lua   widget editor (F11): edit text/color, export to exports/
+--         serialize.lua  table -> Lua source, used by the editor
 --         session.lua  remembers screen / window across restarts
 
 local config = require("sandbox.config")
@@ -52,6 +54,8 @@ function sandbox.attach()
     local overlay = require("sandbox.overlay")
     local session = require("sandbox.session")
     local watcher = require("sandbox.watcher")
+    local editor = require("sandbox.editor")
+    local widgets = require("ui.widgets")
 
     -- ------------------------------------------------------------------
     -- State
@@ -105,6 +109,15 @@ function sandbox.attach()
         local ok, msg = pcall(string.format, tostring(fmt), ...)
         push("[game] " .. (ok and msg or tostring(fmt)))
         return origDebugLog(fmt, ...)
+    end
+
+    -- Widget editor (F11): hand it our logger, and let it see every widget
+    -- screen as it is drawn so saved edits get applied.
+    editor.setLogger(log)
+    local origWidgetsDraw = widgets.draw
+    widgets.draw = function(def, ...)
+        editor.seen(def)
+        return origWidgetsDraw(def, ...)
     end
 
     -- ------------------------------------------------------------------
@@ -251,6 +264,7 @@ function sandbox.attach()
             love.system.openURL("file://" .. dir)
         end,
         hide = function() hidden = not hidden end,
+        edit = function() editor.toggle() end,
         shot = function() pendingShot = os.date("sandbox_%Y%m%d_%H%M%S.png") end,
     }
 
@@ -288,8 +302,11 @@ function sandbox.attach()
         local flags = {}
         if padMode then flags[#flags + 1] = "PAD" end
         if autoReload then flags[#flags + 1] = "AUTO-RELOAD" end
+        if editor.active() then flags[#flags + 1] = "EDIT" end
         info.strip = string.format("SANDBOX | %s | %dx%d | %s%s",
-            id, w, h, table.concat(flags, " "), (#flags > 0 and " | " or "") .. keyName("panel") .. " = help")
+            id, w, h, table.concat(flags, " "),
+            (#flags > 0 and " | " or "") .. keyName("panel") .. " = help | " .. keyName("edit") .. " = edit")
+        info.hints = editor.hints()
 
         if toast and clock - toastAt < 4 then
             info.toast = { text = toast, alpha = math.min(1, (4 - (clock - toastAt))) }
@@ -319,22 +336,27 @@ function sandbox.attach()
             local keys = {}
             for k in pairs(config.jump) do keys[#keys + 1] = k end
             table.sort(keys)
-            for i = 1, #keys, 2 do
-                local a, b = keys[i], keys[i + 1]
-                kv(a .. "  " .. config.jump[a], b and (b .. "  " .. config.jump[b]) or "")
-            end
+            for _, k in ipairs(keys) do kv(k, config.jump[k]) end
 
             heading("HOTKEYS")
-            kv(keyName("resize"), "cycle window size")
-            kv(keyName("pad"), "virtual gamepad on/off")
-            kv(keyName("log"), "event log on/off")
-            kv(keyName("restart"), "restart (reload all code)")
-            kv(keyName("reload"), "auto-reload on file save")
-            kv(keyName("loading"), "preview loading screen")
-            kv(keyName("wipe"), "wipe saved settings (press twice)")
-            kv(keyName("saveDir"), "open save folder")
-            kv(keyName("hide"), "hide / show this overlay")
-            kv(keyName("shot"), "screenshot (without overlay)")
+            kv(keyName("resize"), "window size")
+            kv(keyName("pad"), "virtual gamepad")
+            kv(keyName("log"), "event log")
+            kv(keyName("restart"), "restart")
+            kv(keyName("reload"), "auto-reload")
+            kv(keyName("loading"), "loading preview")
+            kv(keyName("wipe"), "wipe saves (twice)")
+            kv(keyName("saveDir"), "save folder")
+            kv(keyName("hide"), "hide overlay")
+            kv(keyName("shot"), "screenshot")
+
+            heading("EDITOR")
+            kv(keyName("edit"), "edit mode")
+            kv("B", "background")
+            kv("[ ]", "blur")
+            kv("- =", "dim")
+            kv("Ctrl+E", "export page")
+            kv("Ctrl+Shift+E", "export all")
             info.rows = rows
         end
         return info
@@ -373,6 +395,7 @@ function sandbox.attach()
             pendingShot = nil
             return
         end
+        editor.draw()
         if not hidden then overlay.draw(buildInfo()) end
     end
 
@@ -382,7 +405,9 @@ function sandbox.attach()
         -- belongs to it, so the sandbox stays out of the way.
         if not keybinds.isCapturing() then
             if not isrepeat then event("key  %s", key) end
+            if editor.keypressed(key) then return end
             if handleHotkey(key) then return end
+            if editor.active() then return end   -- edit mode: keys never reach the game
             local button = padMode and config.padMap[key]
             if button then
                 virtualDown[button] = true
@@ -403,7 +428,14 @@ function sandbox.attach()
     orig.mousepressed = love.mousepressed
     love.mousepressed = function(x, y, button, ...)
         event("mouse %d  at %d,%d  (%s)", button, x, y, screens.currentId())
+        if editor.mousepressed(x, y, button) then return end   -- edit mode: clicks select widgets
         if orig.mousepressed then orig.mousepressed(x, y, button, ...) end
+    end
+
+    orig.textinput = love.textinput
+    love.textinput = function(text)
+        if editor.textinput(text) then return end
+        if orig.textinput then orig.textinput(text) end
     end
 
     orig.gamepadpressed = love.gamepadpressed

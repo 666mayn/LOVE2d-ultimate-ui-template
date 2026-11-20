@@ -8,6 +8,10 @@ local config = {
     subtitle = "",                                  -- optional line under the main-menu title ("" = none)
     version  = "v0.1.0",
 
+    -- Font: drop any .ttf / .otf into fonts/ and it is used automatically.
+    -- Several in there? Name the one you want (file name inside fonts/); nil = first found.
+    font = nil,                -- e.g. "myfont.ttf"
+
     -- Optional startup videos (.ogv) played back to back before the main menu.
     -- Leave empty to skip the intro entirely.
     introVideos = {},          -- e.g. { "intros/intro1.ogv", "intros/intro2.ogv" }

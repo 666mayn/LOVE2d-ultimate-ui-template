@@ -3,24 +3,60 @@
 -- requested size down to the closest available one (avoids
 -- re-rasterizing a new Font object every frame for scaled UI text).
 --
--- Drop your own .ttf in fonts/ and change `fontPath`. If the file is
--- missing or fails to load, LOVE's built-in font is used instead so the
--- template still runs.
+-- Drop ANY .ttf / .otf into fonts/ (any file name) and it is used: the first
+-- font file found (alphabetical) wins. To pick one when several are there, set
+-- `font = "myfont.ttf"` in config.lua. If there is no usable font, LOVE's
+-- built-in font is used instead so the template still runs.
 
 local fonts = {}
 
-local fontPath = "fonts/boldpixels.ttf"
+local FONT_DIR = "fonts"
+local fontPath            -- resolved lazily, see fonts.path()
 local availableFontSizes = {12, 14, 16, 18, 20, 24, 30, 36, 42, 48, 52, 60, 72, 96}
 local loadedFonts = {}
+
+local function isFontFile(name)
+    local n = name:lower()
+    return n:match("%.ttf$") or n:match("%.otf$")
+end
+
+-- Path of the font in use (e.g. "fonts/whatever.ttf"), or nil if fonts/ has none.
+-- config.font (a file name inside fonts/) wins; otherwise the first font file found.
+function fonts.path()
+    if fontPath ~= nil then return fontPath or nil end
+    fontPath = false
+    local okc, config = pcall(require, "config")
+    local wanted = okc and type(config) == "table" and config.font or nil
+    if wanted and love.filesystem.getInfo(FONT_DIR .. "/" .. wanted) then
+        fontPath = FONT_DIR .. "/" .. wanted
+    elseif love.filesystem.getInfo(FONT_DIR) then
+        local found = {}
+        for _, name in ipairs(love.filesystem.getDirectoryItems(FONT_DIR)) do
+            if isFontFile(name) then found[#found + 1] = name end
+        end
+        table.sort(found)
+        if found[1] then fontPath = FONT_DIR .. "/" .. found[1] end
+    end
+    return fontPath or nil
+end
+
+-- Loads a Font object from the resolved font file (LOVE's default if none/failed).
+function fonts.new(size)
+    local path = fonts.path()
+    if path then
+        local ok, font = pcall(love.graphics.newFont, path, size)
+        if ok then return font end
+    end
+    return love.graphics.newFont(size)
+end
 
 -- Call once from love.load(). Safe to call again (e.g. after a font swap).
 -- Fonts keep their own filter; they are not tied to texture_filter_manager.
 function fonts.load()
     loadedFonts = {}
+    fontPath = nil        -- re-scan fonts/ (you may have dropped a new one in)
     for _, size in ipairs(availableFontSizes) do
-        local ok, font = pcall(love.graphics.newFont, fontPath, size)
-        if not ok then font = love.graphics.newFont(size) end
-        loadedFonts[size] = font
+        loadedFonts[size] = fonts.new(size)
     end
 end
 

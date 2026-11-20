@@ -1,0 +1,8 @@
+BoldPixels (boldpixels.ttf), version 1.6
+By YukiPixels, 2024
+https://yukipixels.itch.io/boldpixels
+
+Licensed under Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0):
+https://creativecommons.org/licenses/by-sa/4.0/deed.en
+
+If you ship this font with your game or tool, credit YukiPixels and keep this notice.
