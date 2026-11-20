@@ -10,6 +10,18 @@ Run it as-is (`love .`) to see a tiny demo: move a checkerboard square with the 
 | :---: | :---: |
 | ![F11 UI Editor Mode](reference_screenshots/ui_editor_open.png) | ![Clean Main Menu](reference_screenshots/ui_editor_closed.png) |
 
+| UI Editor Overview | Keybinds Settings |
+| :---: | :---: |
+| ![UI Editor Overview](reference_screenshots/ui_editor_open_3.png) | ![Keybinds Settings](reference_screenshots/ui_editor_open_4_keybinds.png) |
+
+| Controller Binds | Other Settings |
+| :---: | :---: |
+| ![Controller Binds](reference_screenshots/ui_editor_open_4_controller_binds.png) | ![Other Settings](reference_screenshots/ui_editor_open_6_other_settings.png) |
+
+| Texture & Screen Filters | |
+| :---: | :---: |
+| ![Texture & Screen Filters](reference_screenshots/ui_editor_open_7_texture_settings.png) | |
+
 ## Quick Start Guide
 
 **1. Run it.** Install [LÖVE](https://love2d.org) 11.x, then from the project folder:
