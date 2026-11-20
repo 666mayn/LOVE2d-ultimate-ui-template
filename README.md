@@ -1,8 +1,8 @@
-# LÖVE2D Menu & Settings Template
+# LÖVE2D Menu \& Settings Template
 
 A drop-in, **zero-dependency** UI starter for any [LÖVE](https://love2d.org) (11.x) game:
 main menu, pause menu, settings with **rebindable keyboard + gamepad controls**, an
-"other settings" screen, a texture-filter switcher, a loading screen, a HUD helper, and an
+"other settings" screen, a texture-filter switcher with optional CRT / LCD screen filters, a loading screen, a HUD helper, and an
 optional intro-video player. Pure Lua + LÖVE, no libraries.
 
 Run it as-is (`love .`) to see a tiny demo: move a checkerboard square with the bound keys,
@@ -14,23 +14,25 @@ press Esc to pause, and change everything from the settings screens.
 main.lua                    demo wiring (replace the "YOUR GAME" block with your game)
 conf.lua                    window + save-folder name (change `t.identity`!)
 config.lua                  title, version, and fields the settings rows write into
-ui_state.lua                which screen is open + cursor positions + pulse clock
-menu_input.lua              keyboard / mouse / gamepad navigation for every menu
-keybinds.lua                rebindable keyboard actions (placeholder_* examples)
-controller.lua              rebindable gamepad actions (placeholder_* examples)
+ui\_state.lua                which screen is open + cursor positions + pulse clock
+menu\_input.lua              keyboard / mouse / gamepad navigation for every menu
+keybinds.lua                rebindable keyboard actions (placeholder\_\* examples)
+controller.lua              rebindable gamepad actions (placeholder\_\* examples)
 input.lua                   optional: one call checks keyboard AND gamepad
-other_settings.lua          data-driven cycle rows (volumes, shake, FPS, fullscreen)
-texture_filter_manager.lua  Sharp / Smooth / Hybrid texture filtering, live + saved
+other\_settings.lua          data-driven cycle rows (volumes, shake, FPS, fullscreen)
+texture\_filter\_manager.lua  Sharp / Smooth / Hybrid texture filtering, live + saved
+crt\_manager.lua             optional full-screen shader filters (CRT, LCD, ...), live + saved
+crt\_filters/                one file per screen filter; each lists its own settings rows
 audio.lua                   tiny volume-aware audio helper (tolerates missing files)
-loading_screen.lua          timed loading-state machine
-intro_sequence.lua          optional startup .ogv videos
+loading\_screen.lua          timed loading-state machine
+intro\_sequence.lua          optional startup .ogv videos
 fonts.lua  fonts/           pre-sized font cache (falls back to LÖVE's font if missing)
 debuglog.lua                print-based logger
 ui/                         all drawing code, one file per screen
 sandbox/                    optional dev tools (jump to any screen, fake gamepad, auto-reload)
 ```
 
-## Developing the UI: the sandbox
+## Developing the UI:
 
 `love . --sandbox` runs the demo with dev tooling on top: press **F1** for a panel, then
 **1-8** to jump straight to any screen, **F3** for a keyboard-driven fake gamepad, **F2** to
@@ -42,23 +44,29 @@ Full details in [`sandbox/README.md`](sandbox/README.md). Optional: leave `sandb
 1. Copy the files into your project (or start from this repo).
 2. **Config:** edit `config.lua` (title, version) and `conf.lua` (`t.identity`).
 3. **Controls:** edit the `ACTIONS` lists in `keybinds.lua` and `controller.lua`.
-   Use the same `id`s in both so `input.isDown("your_action")` works for either device.
-   The menus rebuild themselves from those lists.
-4. **Settings rows:** add entries to `ROW_DEFS` in `other_settings.lua`. A row is a label, a list
-   of options, and either a `configRef`/`configField` to write to or a `setter` function.
-5. **Textures:** create images with `texture_filter_manager.newImage(...)` (or `.track(img)`) so
-   the Texture Filter setting updates them live.
+Use the same `id`s in both so `input.isDown("your\_action")` works for either device.
+The menus rebuild themselves from those lists.
+4. **Settings rows:** add entries to `ROW\_DEFS` in `other\_settings.lua`. A row is a label, a list
+of options, and either a `configRef`/`configField` to write to or a `setter` function.
+5. **Textures:** create images with `texture\_filter\_manager.newImage(...)` (or `.track(img)`) so
+the Texture Filter setting updates them live.
 6. **Your game:** replace the "YOUR GAME" block in `main.lua`. The hooks you care about are
-   `menu_input.configure{ onPlay, onResume, onExitToMenu, onExit }`.
+`menu\_input.configure{ onPlay, onResume, onExitToMenu, onExit }`.
 
 ### Extending
 
-- **New main/pause button:** add a label + action in `ui/main_menu.lua` (or `ui/pause_menu.lua`),
-  then handle the action in `menu_input.lua`.
-- **New settings category:** add it to `CATEGORIES` in `ui/settings_menu.lua`, copy
-  `ui/other_settings_menu.lua` as the screen, add its flag/cursor to `ui_state.lua`, and register
-  it in `ui/init.lua` and `menu_input.lua`'s `SCREENS` list.
-- **New texture filter mode:** one line in `defs` in `texture_filter_manager.lua`.
+* **New main/pause button:** add a label + action in `ui/main\_menu.lua` (or `ui/pause\_menu.lua`),
+then handle the action in `menu\_input.lua`.
+* **New settings category:** add it to `CATEGORIES` in `ui/settings\_menu.lua`, copy
+`ui/other\_settings\_menu.lua` as the screen, add its flag/cursor to `ui\_state.lua`, and register
+it in `ui/init.lua` and `menu\_input.lua`'s `SCREENS` list.
+* **New texture filter mode:** one line in `defs` in `texture\_filter\_manager.lua`.
+* **New screen filter:** drop a module in `crt\_filters/` and add one line to `defs` in
+`crt\_manager.lua`. A filter provides `init`, `update(dt)`, `apply`, `endApply` and an optional
+`settings` table (`{ id, label, defaultIndex, apply(value), options = {{ label, value }, ...} }`).
+Its settings show up as rows in Settings -> Textures automatically, saved per filter.
+The three included filters (Classic CRT, Neon Arcade, Handheld LCD) are working examples.
+The default is Off; change `DEFAULT\_ID` in `crt\_manager.lua` to ship with one on.
 
 ### Controls (menus)
 
@@ -67,8 +75,12 @@ Click a bind to rebind it (Esc / Start cancels). Binding a key already in use sw
 
 ## Notes
 
-- Saved settings go in LÖVE's save directory (`keybinds.txt`, `controller.txt`,
-  `other_settings.txt`, `texture_filter_choice.txt`).
-- Sizes are laid out against a 1080p reference and scale with window height.
-- `fonts/boldpixels.ttf` is bundled for the look of the demo. Check its license before
-  redistributing, or swap in a font you're free to share (change `fontPath` in `fonts.lua`).
+* Saved settings go in LÖVE's save directory (`keybinds.txt`, `controller.txt`,
+`other\_settings.txt`, `texture\_filter\_choice.txt`, `crt\_filter\_choice.txt`).
+* Screen filters bend or pixelate the picture, but mouse hit-boxes stay on the unfiltered layout.
+Test strong curvature before shipping it on a mouse-driven UI. A filter that fails to load is
+skipped, never fatal.
+* Sizes are laid out against a 1080p reference and scale with window height.
+* `fonts/boldpixels.ttf` is bundled for the look of the demo. Check its license before
+redistributing, or swap in a font you're free to share (change `fontPath` in `fonts.lua`).
+

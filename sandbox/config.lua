@@ -75,5 +75,6 @@ return {
         "controller.txt",
         "other_settings.txt",
         "texture_filter_choice.txt",
+        "crt_filter_choice.txt",
     },
 }

@@ -14,6 +14,7 @@ local controller = require("controller")
 local input = require("input")
 local other_settings = require("other_settings")
 local texture_filter_manager = require("texture_filter_manager")
+local crt_manager = require("crt_manager")
 local loading_screen = require("loading_screen")
 local intro_sequence = require("intro_sequence")
 local menu_input = require("menu_input")
@@ -74,6 +75,7 @@ local function gameDraw(w, h)
         { "TIME", string.format("%.1f", game.score) },
         { "JUMPS", game.jumps },
         { "FILTER", string.upper(texture_filter_manager.getActive().id) },
+        { "CRT", string.upper(crt_manager.getActive().name) },
     }, 40 * uiScale, 140 * uiScale, uiScale)
 
     love.graphics.setFont(ui.getFont(18 * uiScale))
@@ -90,6 +92,7 @@ function love.load()
     -- Order matters: the filter first, so anything created afterwards
     -- (fonts excluded) already uses the saved mode.
     texture_filter_manager.init()
+    crt_manager.init()
     fonts.load()
     keybinds.init()
     controller.init()
@@ -138,6 +141,7 @@ end
 
 function love.update(dt)
     ui_state.update(dt)
+    crt_manager.update(dt) -- keeps the filter's animation running even in menus
 
     if intro_sequence.isActive() then
         intro_sequence.update(dt)
@@ -152,7 +156,7 @@ function love.update(dt)
     end
 end
 
-function love.draw()
+local function drawScene()
     local w, h = love.graphics.getDimensions()
 
     if intro_sequence.isActive() then
@@ -193,6 +197,14 @@ function love.draw()
     elseif s.showMainMenu then
         ui.drawMainMenu(w, h, s.menuSelection, mx, my, uiScale)
     end
+end
+
+-- Everything drawn in drawScene() goes through the CRT filter chosen in
+-- Settings -> Textures (a no-op when it's Off).
+function love.draw()
+    crt_manager.beginFrame()
+    drawScene()
+    crt_manager.endFrame()
 end
 
 function love.keypressed(key)
