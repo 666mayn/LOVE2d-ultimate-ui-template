@@ -20,7 +20,7 @@ local CATEGORIES = {
     { label = "K E Y B O A R D",       action = "keyboard" },
     { label = "C O N T R O L L E R", action = "controller" },
     { label = "O T H E R",       action = "other_settings" },
-    { label = "T E X T U R E  F I L T E R", action = "texture_filter" },
+    { label = "T E X T U R E S", action = "texture_filter" },
     { label = "B A C K",                   action = "back" },
 }
 
