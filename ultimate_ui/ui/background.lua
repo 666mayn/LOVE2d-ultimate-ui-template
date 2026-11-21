@@ -14,6 +14,7 @@
 -- A missing image is skipped (one console warning), never fatal.
 
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
+local debuglog = require(ROOT .. ".debuglog")
 local background = {}
 
 local MAX_BLUR = 10
@@ -22,7 +23,6 @@ background.MAX_BLUR = MAX_BLUR
 local images = {}        -- path -> image | false (failed)
 local cache = nil        -- { key =, canvas = }
 local shader, shaderTried = nil, false
-local warned = {}
 
 local SHADER = [[
 extern vec2 dir;   // one-texel step along the blur axis
@@ -46,10 +46,7 @@ local function getShader()
 end
 
 local function warn(path, msg)
-    if not warned[path] then
-        warned[path] = true
-        print("[background] " .. path .. ": " .. tostring(msg))
-    end
+    debuglog.warnOnce("background:" .. tostring(path), "background \"%s\": %s", tostring(path), tostring(msg))
 end
 
 local function getImage(path, sharp)

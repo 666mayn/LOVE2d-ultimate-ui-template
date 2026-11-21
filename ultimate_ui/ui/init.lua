@@ -31,6 +31,7 @@ ui.drawVersionText = hud.drawVersionText
 ui.drawFPS         = hud.drawFPS
 ui.drawSidePanel   = hud.drawSidePanel
 ui.drawGameTitle   = hud.drawGameTitle
+ui.drawHUD         = hud.drawHUD       -- title + stats, editable in the sandbox (ui/hud_screen.lua)
 
 -- Main menu (ui/main_menu.lua)
 ui.drawMainMenu        = main_menu.drawMainMenu

@@ -7,6 +7,8 @@ local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local ui_state = require(ROOT .. ".ui_state")
 local config = require(ROOT .. ".config")
 local helpers = require(ROOT .. ".ui.helpers")
+local widgets = require(ROOT .. ".ui.widgets")
+local hud_screen = require(ROOT .. ".ui.hud_screen")
 local getFont = helpers.getFont
 
 local hud = {}
@@ -43,6 +45,15 @@ function hud.drawSidePanel(stats, x, y, uiScale)
         love.graphics.print(stat[1] .. ":  " .. tostring(stat[2]), x, y + (i - 1) * 40 * uiScale)
     end
     love.graphics.setColor(1, 1, 1, 1)
+end
+
+-- 5. The editable HUD (ui/hud_screen.lua): game title + stats side panel in ONE call,
+-- laid out from data so the sandbox editor (F11) can change their text and color in-game.
+-- `stats` is a list of { label, value } pairs, same as drawSidePanel. Prefer this over
+-- drawGameTitle + drawSidePanel (which stay for projects that draw their own HUD).
+function hud.drawHUD(stats, screenWidth, screenHeight, uiScale)
+    widgets.setData("hud", "stats", stats or {})
+    hud_screen.drawHud(screenWidth, screenHeight, nil, nil, nil, uiScale)
 end
 
 -- 4. Game title (top-center), from config.title.

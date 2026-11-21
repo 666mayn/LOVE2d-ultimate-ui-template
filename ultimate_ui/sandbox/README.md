@@ -58,7 +58,9 @@ While a keyboard rebind is waiting for a key, the sandbox ignores every key
 ## Widget editor (F11)
 
 Edit what a screen says and what color it is, then export the page as a **drop-in replacement for its
-file**. Works on screens built from `ui/widgets.lua` (the main menu so far; the rest get migrated).
+file**. Works on screens built from `ui/widgets.lua`: the main menu, the pause menu and the in-game HUD
+(game title + stats side panel); the rest get migrated. It works **in the game too**: press F11 while
+playing to edit the HUD, press Esc to pause and edit the pause menu.
 Its hints appear bottom-left, next to the F1 hint.
 
 | Action | How |
@@ -67,7 +69,9 @@ Its hints appear bottom-left, next to the F1 hint.
 | Change its text | Just type. Backspace deletes, Ctrl+V pastes |
 | Change its color | **Tab** to the COLOR field and type `#RRGGBB` or `rainbow`, or click a swatch |
 | Reset it | **Del** |
-| Deselect | **Esc** |
+| Deselect | **Esc** (while something is selected) |
+| Pause / walk the menu | With nothing selected, **Esc**, the arrow keys and **Enter** still go to the game, so you can pause, move through the pause menu and resume without leaving edit mode |
+| Press a button (use the game) | **Ctrl+click**: clicks the real PLAY / RESUME / EXIT TO MENU instead of selecting it |
 | Export this page | **Ctrl+E** writes `exports/ultimate_ui/ui/main_menu.lua` (the page's own project path, under `exports/`) |
 | Export all pages | **Ctrl+Shift+E** writes every page, edits included |
 | Test background | **On by default** in the sandbox (blur 8, dim 30%; change `defaultBackground` in `ultimate_ui/sandbox/config.lua`, or set it to `nil` for none). **B** (nothing selected) cycles the images in `ultimate_ui/background/`, then off |
@@ -85,7 +89,8 @@ An export is the whole screen file, so nothing else has to change. In text, `{co
 `showIf = "config.subtitle"` hides a widget while that value is empty.
 
 While something is selected, typed keys go to the editor (so number keys don't jump screens);
-press Esc first to use the F1 jump keys. In edit mode keys and clicks never reach the game.
+press Esc first to use the F1 jump keys. In edit mode every other key and plain click stays with the editor
+(only Esc / arrows / Enter with nothing selected, and Ctrl+click, reach the game).
 
 The test background / dim are only exported if you chose them yourself (B, [ ], - =); otherwise the page
 keeps what its file says. If you did pick a background, ship the `ultimate_ui/background/` folder with your game.

@@ -37,11 +37,31 @@ local function text(str, x, y, c, alpha)
     love.graphics.print(str, x, y)
 end
 
+-- push("all") SAVES the graphics state but does not reset it, so anything the game left
+-- behind (a canvas, shader, scissor, blend mode, color mask, stencil) would apply to the
+-- overlay too and could hide it -- most often in the game state, where the world and the
+-- screen filter are drawn. Put everything back to plain defaults first.
+function overlay.cleanState()
+    -- Each call is protected on its own: one that a LOVE version dislikes must never stop
+    -- the rest (or the overlay itself) from running.
+    local g = love.graphics
+    pcall(g.setCanvas)
+    pcall(g.setShader)
+    pcall(g.setScissor)
+    pcall(g.setBlendMode, "alpha")
+    pcall(g.setColorMask, true, true, true, true)
+    pcall(g.setStencilTest)
+    pcall(g.setWireframe, false)
+    pcall(g.setLineWidth, 1)
+    pcall(g.setLineStyle, "rough")
+    pcall(g.origin)
+end
+
 function overlay.draw(info)
     local font = theme.font()
 
     love.graphics.push("all")
-    love.graphics.origin()
+    overlay.cleanState()
     love.graphics.setFont(font)
 
     local w, h = love.graphics.getDimensions()

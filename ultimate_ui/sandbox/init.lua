@@ -203,7 +203,7 @@ function sandbox.attach()
 
         panelOpen = flag(saved.panel, false)
         showLog = flag(saved.log, false)
-        hidden = flag(saved.hidden, false)
+        hidden = false   -- never restored: a saved "hidden" made the overlay vanish on every launch
         autoReload = flag(saved.reload, config.autoReload)
         if flag(saved.pad, false) then padMode = true end
 
@@ -247,7 +247,7 @@ function sandbox.attach()
     end
 
     local ACTIONS = {
-        panel = function() panelOpen = not panelOpen end,
+        panel = function() if hidden then hidden = false panelOpen = true else panelOpen = not panelOpen end end,
         resize = cycleWindowSize,
         pad = function() setPadMode(not padMode) end,
         log = function() showLog = not showLog end,
@@ -397,8 +397,27 @@ function sandbox.attach()
             pendingShot = nil
             return
         end
-        editor.draw()
-        if not hidden then overlay.draw(buildInfo()) end
+        -- The editor drawing and the overlay are protected from each other (and from the
+        -- game): an error in one is logged instead of taking the F1 panel down with it.
+        local okE, errE = pcall(editor.draw)
+        if not okE then push("[draw] editor: " .. tostring(errE)) print("[sandbox] editor.draw failed: " .. tostring(errE)) end
+        if not hidden then
+            local okO, errO = pcall(function() overlay.draw(buildInfo()) end)
+            if not okO then
+                push("[draw] overlay: " .. tostring(errO))
+                print("[sandbox] overlay failed: " .. tostring(errO))
+                -- last resort: say so on screen, in plain state
+                pcall(function()
+                    love.graphics.push("all")
+                    pcall(love.graphics.setCanvas)
+                    pcall(love.graphics.setShader)
+                    pcall(love.graphics.origin)
+                    love.graphics.setColor(1, 0.3, 0.3, 1)
+                    love.graphics.print("SANDBOX OVERLAY ERROR (see console): " .. tostring(errO):sub(1, 160), 8, 8)
+                    love.graphics.pop()
+                end)
+            end
+        end
     end
 
     orig.keypressed = love.keypressed
@@ -409,7 +428,9 @@ function sandbox.attach()
             if not isrepeat then event("key  %s", key) end
             if editor.keypressed(key) then return end
             if handleHotkey(key) then return end
-            if editor.active() then return end   -- edit mode: keys never reach the game
+            -- edit mode: keys never reach the game, except Esc / arrows / Enter while nothing
+            -- is selected (so you can pause, walk the pause menu and go back)
+            if editor.active() and not editor.passesKey(key) then return end
             local button = padMode and config.padMap[key]
             if button then
                 virtualDown[button] = true

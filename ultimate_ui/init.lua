@@ -10,7 +10,7 @@
 --     UI.configure{ title = "..." }  -- override ultimate_ui/config.lua values from your own code
 --     UI.ui.drawMainMenu(...)        -- the draw / click API (ui/init.lua)
 --     UI.state, UI.keybinds, UI.controller, UI.input, UI.audio, UI.fonts, UI.config,
---     UI.menu_input, UI.other_settings, UI.textures, UI.crt, UI.loading, UI.intro, UI.log
+--     UI.menu_input, UI.other_settings, UI.textures, UI.crt, UI.loading, UI.intro, UI.log, UI.checks
 --
 -- Every module also works under its file name (UI.ui_state, UI.crt_manager, ...), and
 -- can be required directly: require("ultimate_ui.keybinds"). Because every file inside
@@ -49,6 +49,7 @@ local MODULES = {
     loading        = "loading_screen",
     intro          = "intro_sequence",
     log            = "debuglog",
+    checks         = "checks",                   -- startup self-check (run by UI.init)
     sandbox        = "sandbox",                  -- dev tool; see UI.hasSandbox()
 }
 -- the plain file names work too (UI.ui_state, UI.crt_manager, ...)
@@ -96,6 +97,7 @@ function UI.init()
     UI.other_settings.init()
     UI.state.init()
     UI.loading.init()
+    UI.checks.run()      -- warns (console + sandbox log) about missing image / fonts / filters ...
     return UI
 end
 

@@ -41,7 +41,7 @@ function audio.playSFX(path, volumeScale)
         if ok then
             src = loaded
         else
-            debuglog.log("audio: could not load sfx '%s'", path)
+            debuglog.warn("audio: could not load sfx '%s' (missing file?)", path)
             src = false
         end
         sfxCache[path] = src
@@ -56,7 +56,7 @@ function audio.playMusic(path)
     audio.stopMusic()
     local ok, src = pcall(love.audio.newSource, path, "stream")
     if not ok then
-        debuglog.log("audio: could not load music '%s'", path)
+        debuglog.warn("audio: could not load music '%s' (missing file?)", path)
         return
     end
     music = src

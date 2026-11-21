@@ -2,25 +2,29 @@
 
 A drop-in, **zero-dependency** UI starter for any [LÖVE](https://love2d.org) (11.x) game: main menu, pause menu, settings with **rebindable keyboard + gamepad controls**, an "other settings" screen, a texture-filter switcher with optional CRT / LCD screen filters, a loading screen, a HUD helper, and an optional intro-video player. Pure Lua + LÖVE, no libraries.
 
-Run it as-is (`love .`) to see a tiny demo: move a checkerboard square with the bound keys, press Esc to pause, and change everything from the settings screens.
+Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard that fills a fixed 1920x1080 (16:9) game canvas with the bound keys, press Esc to pause, and change everything from the settings screens.
 
 ## Screenshots
 
-| Live F11 UI Editor | Clean Exported Menu |
+| Live F11 UI Editor (with F1 help panel) | Live F11 UI Editor (editing text and color) |
 | :---: | :---: |
-| ![F11 UI Editor Mode](reference_screenshots/ui_editor_open.png) | ![Clean Main Menu](reference_screenshots/ui_editor_closed.png) |
+| ![F11 UI editor open, F1 help panel on the right](reference_screenshots/ui_editor_open.png) | ![F11 UI editor open, editing a widget](reference_screenshots/ui_editor_open_2.png) |
 
-| UI Editor Overview | Keybinds Settings |
+| Clean Exported Menu | Keyboard Rebinding |
 | :---: | :---: |
-| ![UI Editor Overview](reference_screenshots/ui_editor_open_3.png) | ![Keybinds Settings](reference_screenshots/ui_editor_open_4_keybinds.png) |
+| ![Main menu with the editor closed](reference_screenshots/ui_editor_closed_2.png) | ![Keyboard binds screen](reference_screenshots/ui_editor_keyboard_binds.png) |
 
-| Controller Binds | Other Settings |
+| Controller Rebinding | Other Settings |
 | :---: | :---: |
-| ![Controller Binds](reference_screenshots/ui_editor_open_4_controller_binds.png) | ![Other Settings](reference_screenshots/ui_editor_open_6_other_settings.png) |
+| ![Controller binds screen](reference_screenshots/ui_editor_controller_binds.png) | ![Other settings screen](reference_screenshots/ui_editor_other_settings.png) |
 
-| Texture & Screen Filters | |
+| Texture & Screen Filters (CRT off) | Texture & Screen Filters (CRT on) |
 | :---: | :---: |
-| ![Texture & Screen Filters](reference_screenshots/ui_editor_open_7_texture_settings.png) | |
+| ![Textures screen with the CRT filter off](reference_screenshots/ui_editor_texture_settings_crt_off.png) | ![Textures screen with the Classic CRT filter on](reference_screenshots/ui_editor_texture_settings_crt_on.png) |
+
+## Demo game: SoBlock
+
+Want to see the template inside a finished game? **SoBlock** is a polished, playable block-stacking game built with an early build of this template, so you can see and feel the UI and the editing tool in a real game. It lives in its own repository: [SOBLOCK-REPO-URL](SOBLOCK-REPO-URL). It is a demonstration only and may not be redistributed, resold, or used in your own projects; to build your own game, use this template.
 
 ## Quick Start Guide
 
@@ -64,6 +68,21 @@ The folder can be renamed or moved anywhere: every file finds its siblings relat
 
 Every module can also be required directly, e.g. `require("ultimate_ui.keybinds")`.
 
+## Startup checks & console output
+
+`UI.init()` runs a quick self-check and prints a **WARNING** for anything that would otherwise just make the menus look wrong:
+a missing menu background image, no `.ttf` / `.otf` in `fonts/`, no screen-filter files in `crt_filters/` (or one that
+`crt_manager.lua` does not list), a missing / non-`.ogv` intro video, a save folder it cannot write to, a LOVE version other
+than 11.x, and the sandbox folder left in a packaged build. Turn it off with `startupChecks = false` in `config.lua`.
+
+To see the output:
+
+* **Windows:** run the game with `lovec.exe` (the console build of LOVE), or set `t.console = true` in `conf.lua`.
+* **Linux / macOS:** run `love .` from a terminal.
+* **Sandbox:** the same lines also show in its on-screen log (**F4**).
+
+Your own code can use the same logger: `UI.log.warn("...")`, `UI.log.warnOnce(key, "...")`, `UI.log.log("...")`.
+
 ## Folder layout
 
 ```text
@@ -75,8 +94,9 @@ ultimate_ui/              <- the whole library: copy this folder, nothing else
   fonts/  background/     drop your .ttf and your menu background images here
   crt_filters/            the screen-filter shaders
   sandbox/                dev tools (love . --sandbox); delete before you ship
-  audio.lua  input.lua  keybinds.lua  controller.lua  menu_input.lua  ...
+  audio.lua  input.lua  keybinds.lua  controller.lua  menu_input.lua  checks.lua  debuglog.lua  ...
 exports/                  where the sandbox editor writes exported pages
+reference_screenshots/    the images used in this README
 ```
 
 ## Upgrading from the old flat layout

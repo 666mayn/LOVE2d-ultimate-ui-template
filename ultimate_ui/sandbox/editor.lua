@@ -4,7 +4,8 @@
 -- DROP-IN REPLACEMENT for its template file.
 --
 --   F11            edit mode on/off
---   click          select a widget            Esc   deselect
+--   click          select a widget            Esc   deselect (nothing selected: Esc/arrows/Enter go to the game)
+--   Ctrl+click     press the button (uses the game, no editing)
 --   type           change the text            Tab   switch TEXT <-> COLOR
 --   COLOR field    #RRGGBB, or "rainbow"      Del   reset widget to original
 --   Ctrl+V         paste (text field)
@@ -30,6 +31,7 @@
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local serialize = require(ROOT .. ".sandbox.serialize")
 local widgets = require(ROOT .. ".ui.widgets")
+local menu_input = require(ROOT .. ".menu_input")
 local fonts = require(ROOT .. ".fonts")
 local bgui = require(ROOT .. ".ui.background")
 local config = require(ROOT .. ".sandbox.config")
@@ -93,7 +95,7 @@ local function targetsOf(def)
     for _, w in ipairs(def.widgets) do
         if w.type == "label" then
             map[w.id] = w
-        elseif w.type == "stack" then
+        elseif w.type == "stack" or w.type == "stats" then
             for i, it in ipairs(w.items) do map[w.id .. "#" .. i] = it end
         end
     end
@@ -178,6 +180,9 @@ function editor.seen(def)
     pristine[def] = pr
     local dropped = 0
 
+    -- A static screen (the in-game HUD) draws over the game with no backdrop, so it
+    -- has no dim / background to restore or mirror.
+    if not def.static then
     -- dim (older saves stored a bare number)
     local d = mine.__dim
     if type(d) == "number" then d = { value = d } end
@@ -210,6 +215,7 @@ function editor.seen(def)
     end
 
     mirrorShared(def, type(bg) == "table" and bg.off)
+    end
 
     -- text / color of widgets
     local targets = targetsOf(def)
@@ -256,7 +262,12 @@ end
 -- ---------------------------------------------------------------------------
 local function current()
     local last = widgets.last
-    if last and (love.timer.getTime() - last.time) < STALE_AFTER then return last end
+    if last and (love.timer.getTime() - last.time) < STALE_AFTER then
+        -- The HUD keeps drawing under a non-widget menu (Settings opened from Pause, ...):
+        -- it is not editable while something covers it.
+        if last.def.static and menu_input.getCurrentScreenName() then return nil end
+        return last
+    end
     return nil
 end
 
@@ -335,6 +346,7 @@ local function cycleBackground()
     local last = current()
     if not last then return logger("no widget screen to put a background behind") end
     local def = last.def
+    if def.static then return logger("the HUD draws over the game: it has no background") end
     local list = bgui.list()
     if #list == 0 then return logger("no images in %s/background/ (add a png or jpg)", LIB_DIR) end
 
@@ -368,6 +380,7 @@ local function changeDim(delta)
     local last = current()
     if not last then return logger("no widget screen to dim") end
     local def = last.def
+    if def.static then return logger("the HUD draws over the game: it has no dim") end
     def.dim = math.max(0, math.min(1, math.floor(((def.dim or 0) + delta) * 20 + 0.5) / 20))
     loadEdits()
     edits[def.id] = edits[def.id] or {}
@@ -601,7 +614,10 @@ function editor.keypressed(key)
         if shift() then editor.exportAll() else editor.export() end
         return true
     end
-    if key == "escape" then sel = nil return true end
+    if key == "escape" then
+        if sel then sel = nil return true end
+        return false          -- nothing selected: Esc is the game's (pause / back)
+    end
     if not sel then
         if key == "b" then cycleBackground() return true end
         if key == "[" then changeBlur(-1) return true end
@@ -625,6 +641,12 @@ function editor.keypressed(key)
     end
     return true                                       -- nothing leaks to the game
 end
+
+-- Keys the game still receives in edit mode while nothing is selected: Esc, arrows and
+-- Enter. That lets you open the pause menu, walk its rows and go back without leaving
+-- edit mode. (While a widget is selected every key belongs to the text field.)
+local PASS = { escape = true, up = true, down = true, ["return"] = true, kpenter = true }
+function editor.passesKey(key) return active and sel == nil and PASS[key] == true end
 
 function editor.textinput(text)
     if not (active and sel) then return false end
@@ -675,6 +697,9 @@ function editor.mousepressed(x, y, button)
         return true
     end
 
+    -- Ctrl+click uses the game: press RESUME / EXIT TO MENU / PLAY without leaving edit mode.
+    if ctrl() then sel = nil return false end
+
     if last then
         for i = #last.items, 1, -1 do
             local item = last.items[i]
@@ -699,9 +724,13 @@ function editor.hints()
     end
     local def = last.def
     local target = EXPORT_DIR .. "/" .. projectFile(def)
+    if not sel and def.static then
+        return { "EDIT MODE (HUD): click the title or a stat row to select it  |  Esc = pause",
+                 "Ctrl+E export this page > " .. target .. "  |  Ctrl+Shift+E export all pages  |  F11 exit" }
+    end
     if not sel then
         local bg = def.background
-        return { "EDIT MODE: click a title or button to select it",
+        return { "EDIT MODE: click a title or button to select it  |  Ctrl+click = press it  |  Esc = back",
                  "B = background (" .. (bg and bg.image:match("[^/]+$") or "off") .. ")  |  [ ] = blur " .. bgBlur
                      .. "/" .. bgui.MAX_BLUR
                      .. "  |  - = dim " .. math.floor((def.dim or 0) * 100 + 0.5) .. "%",
@@ -721,7 +750,7 @@ function editor.draw()
     local C = theme.color
 
     love.graphics.push("all")
-    love.graphics.origin()
+    require(ROOT .. ".sandbox.overlay").cleanState()   -- ignore whatever the game left behind
     love.graphics.setFont(font)
     love.graphics.setLineWidth(2)
 

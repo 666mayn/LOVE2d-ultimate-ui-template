@@ -1,6 +1,6 @@
 -- main.lua
 -- Demo wiring for the template. Everything between the "YOUR GAME" markers
--- is a throwaway toy (a checkerboard square you move with the bound keys)
+-- is a throwaway toy (a black-and-grey checkerboard on a 1920x1080 canvas that the bound keys scroll)
 -- -- delete it and drop in your own game. The rest shows how the menus,
 -- settings, rebinding, texture filter and loading screen plug together.
 --
@@ -34,24 +34,59 @@ end
 -- ==========================================
 local game = {}
 
+-- The game world is drawn on ONE fixed-size canvas: 1920x1080 (16:9, a normal "1080p"
+-- canvas). It is scaled to fit the window and centred, with bars on the sides or top
+-- if the window is not 16:9. Change these two numbers if your game uses another size.
+-- (The menus / HUD are separate: they are laid out at the window's size, see uiScale.)
+local GAME_W, GAME_H = 1920, 1080
+local CELL = 120                      -- checkerboard square size, in canvas pixels (16 x 9 squares)
+local BLACK, GREY = 0.04, 0.30        -- the two checkerboard shades
+
 local function gameLoad()
-    -- An 8x8 checkerboard, made in code so the template needs no assets.
-    -- Created through the manager so Settings -> Texture Filter changes it live.
-    local data = love.image.newImageData(8, 8)
-    for y = 0, 7 do
-        for x = 0, 7 do
-            local on = (x + y) % 2 == 0
-            data:setPixel(x, y, on and 1 or 0.15, on and 0.8 or 0.15, on and 0.2 or 0.35, 1)
-        end
-    end
-    game.texture = texture_filter_manager.newImage(data)
-    game.x, game.y = 200, 200
+    -- Made through the manager, so Settings -> Textures (Sharp / Smooth / Hybrid) changes how
+    -- the canvas is scaled to the window, live.
+    game.canvas = texture_filter_manager.newCanvas(GAME_W, GAME_H)
+    game.x, game.y = 0, 0             -- how far the board has scrolled (canvas pixels)
     game.score = 0
     game.jumps = 0
 end
 
+-- Placeholder world: a black-and-grey checkerboard filling the whole canvas.
+-- The movement keys scroll it, so you can see input working. Replace with your game.
+local function drawPlaceholderWorld()
+    love.graphics.clear(BLACK, BLACK, BLACK, 1)
+    love.graphics.setColor(GREY, GREY, GREY, 1)
+    local cx, cy = math.floor(game.x / CELL), math.floor(game.y / CELL)
+    local offX, offY = -(game.x % CELL), -(game.y % CELL)
+    for row = 0, math.ceil(GAME_H / CELL) do
+        for col = 0, math.ceil(GAME_W / CELL) do
+            if (col + cx + row + cy) % 2 == 0 then
+                love.graphics.rectangle("fill", offX + col * CELL, offY + row * CELL, CELL, CELL)
+            end
+        end
+    end
+    love.graphics.setColor(1, 1, 1, 1)
+end
+
+-- Draws the world into game.canvas, then the canvas to the window at the largest size
+-- that keeps 16:9 (letterboxed). Returns where it landed: x, y, scale.
+local function drawGameCanvas(w, h)
+    love.graphics.push("all")
+    love.graphics.setCanvas(game.canvas)
+    love.graphics.origin()
+    drawPlaceholderWorld()
+    love.graphics.pop()               -- back to whatever we were drawing to (the CRT canvas, if on)
+
+    local scale = math.min(w / GAME_W, h / GAME_H)
+    local x = math.floor((w - GAME_W * scale) / 2)
+    local y = math.floor((h - GAME_H * scale) / 2)
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.draw(game.canvas, x, y, 0, scale, scale)
+    return x, y, scale
+end
+
 local function gameUpdate(dt)
-    local speed = input.isDown("placeholder_sprint") and 420 or 220
+    local speed = input.isDown("placeholder_sprint") and 800 or 400   -- canvas pixels / second
     if input.isDown("placeholder_forward")  then game.y = game.y - speed * dt end
     if input.isDown("placeholder_backward") then game.y = game.y + speed * dt end
     if input.isDown("placeholder_left")     then game.x = game.x - speed * dt end
@@ -68,17 +103,16 @@ local function gameGamepadpressed(button)
 end
 
 local function gameDraw(w, h)
-    local size = 96 * uiScale
-    love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(game.texture, game.x * uiScale, game.y * uiScale, 0,
-        size / game.texture:getWidth(), size / game.texture:getHeight())
+    drawGameCanvas(w, h)
 
-    ui.drawSidePanel({
+    -- Game title + stats panel (ultimate_ui/ui/hud_screen.lua). Editable in the sandbox (F11).
+    ui.drawHUD({
+        { "CANVAS", GAME_W .. "x" .. GAME_H },
         { "TIME", string.format("%.1f", game.score) },
         { "JUMPS", game.jumps },
         { "FILTER", string.upper(texture_filter_manager.getActive().id) },
         { "CRT", string.upper(crt_manager.getActive().name) },
-    }, 40 * uiScale, 140 * uiScale, uiScale)
+    }, w, h, uiScale)
 
     love.graphics.setFont(ui.getFont(18 * uiScale))
     love.graphics.setColor(0.7, 0.7, 0.7, 1)
@@ -172,8 +206,7 @@ local function drawScene()
 
     -- World + HUD (behind the menus; hidden while the main menu is up).
     if not s.showMainMenu then
-        gameDraw(w, h)
-        ui.drawGameTitle(w, uiScale)
+        gameDraw(w, h)   -- world + title + stats (ui.drawHUD)
     end
     ui.drawVersionText(w, h, uiScale)
     ui.drawFPS(uiScale)

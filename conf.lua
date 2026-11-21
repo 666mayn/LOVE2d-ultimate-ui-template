@@ -9,4 +9,9 @@ function love.conf(t)
     t.window.minwidth = 640
     t.window.minheight = 360
     t.window.vsync = 1
+
+    -- Windows: true opens a console window that shows print() output and the
+    -- template's WARNING lines (or just run the game with lovec.exe instead).
+    -- Linux / macOS: run `love .` from a terminal.
+    t.console = false
 end

@@ -23,6 +23,11 @@ local config = {
     -- A widget screen that sets its own `background` still overrides this for that page.
     menuBackground = nil,      -- e.g. { image = "ultimate_ui/background/my_image.png", blur = 8, dim = 0.3 }
 
+    -- Startup self-check (checks.lua): at UI.init() it warns about a missing menu background
+    -- image, no fonts, no screen filters, a missing intro video, an unwritable save folder ...
+    -- Warnings print to the console (lovec.exe, or t.console = true) and the sandbox log (F4).
+    startupChecks = true,
+
     -- Wired to Settings -> Other (see other_settings.lua)
     screenShakeIntensity = 1.0, -- multiply your shake magnitude by this (0 disables it)
     showFPS = false,            -- hud.drawFPS() only draws when this is true

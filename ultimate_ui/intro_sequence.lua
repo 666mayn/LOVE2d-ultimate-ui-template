@@ -53,7 +53,7 @@ local function loadNextIntro()
             introVideo:play()
             return
         end
-        debuglog.log("Intro video failed to load (%s): %s", path, tostring(videoOrErr))
+        debuglog.warn("intro video failed to load (%s): %s", path, tostring(videoOrErr))
         introIndex = introIndex + 1
     end
 end

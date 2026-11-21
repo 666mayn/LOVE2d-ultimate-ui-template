@@ -88,7 +88,7 @@ local function loadModule(i)
     if ok and type(mod) == "table" then
         loaded[i] = mod
     else
-        debuglog.log("crt_manager: could not load %s: %s", defs[i].module, tostring(mod))
+        debuglog.warn("crt_manager: could not load %s: %s", defs[i].module, tostring(mod))
         loaded[i] = false
     end
     return loaded[i]
@@ -140,7 +140,7 @@ local function activate(i)
         if mod.init then
             local ok, err = pcall(mod.init)
             if not ok then
-                debuglog.log("crt_manager: init failed for %s: %s", defs[i].module, tostring(err))
+                debuglog.warn("crt_manager: init failed for %s: %s", defs[i].module, tostring(err))
                 loaded[i] = false
                 return false
             end

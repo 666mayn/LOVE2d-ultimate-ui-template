@@ -33,6 +33,15 @@
 --          keyboard/gamepad row, in order. `gapBefore` adds extra space above an item;
 --          an item's own `color` overrides the stack's.
 --
+--   stats  { id, type="stats", x=40, y=140, lineHeight=40, fontSize=30, color=<...>, items={ {}, {}, ... } }
+--          A left-aligned column of "LABEL:  value" lines for an in-game HUD. The game feeds the
+--          rows each frame with widgets.setData(screenId, widgetId, { {"LABEL", value}, ... }).
+--          items[i] is an optional override for row i: { text = "NEW LABEL", color = ... } (the value
+--          always comes from the game). Keep a few empty {} entries so the editor can select rows.
+--
+-- Screen flag  static = true  marks an overlay that draws OVER the game (the HUD): no shared
+-- background, no dim, no pop-in animation, never a menu.
+--
 -- Text may contain {module.field} (e.g. "{config.title}"): it is looked up live every
 -- frame, so the screen follows your config. `showIf = "module.field"` hides a widget while
 -- that value is nil / false / "". Both stay plain data, so the editor can export them.
@@ -101,6 +110,13 @@ local function shown(w)
     return true
 end
 
+-- Live data for "stats" widgets, kept OUTSIDE the screen table so exports never
+-- contain it. Key: "<screen id>.<widget id>".
+widgets.data = {}
+function widgets.setData(screenId, widgetId, list)
+    widgets.data[screenId .. "." .. widgetId] = list
+end
+
 -- Layout pass. Returns:
 --   items  : flat draw-ordered list of { kind, x, y, w, h, ... } rects
 --   rows   : the interactive items only, in keyboard/gamepad row order
@@ -160,6 +176,24 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
                 }
                 items[#items + 1] = item
                 byId[w.id] = item
+
+            elseif w.type == "stats" then
+                local list = widgets.data[def.id .. "." .. w.id] or {}
+                local fs = w.fontSize or 30
+                local lh = (w.lineHeight or 40) * uiScale
+                local font = getFont(fs * uiScale)
+                for i, stat in ipairs(list) do
+                    local ov = w.items and w.items[i] or nil
+                    local label = (ov and ov.text ~= nil) and resolveText(ov.text) or tostring(stat[1])
+                    local shownText = label .. ":  " .. tostring(stat[2])
+                    items[#items + 1] = {
+                        kind = "stat", widget = w, id = w.id, index = i,
+                        text = label, shownText = shownText, fontSize = fs,
+                        x = (w.x or 0) * uiScale, y = (w.y or 0) * uiScale + (i - 1) * lh,
+                        w = font:getWidth(shownText), h = fs * uiScale,
+                        color = (ov and ov.color) or w.color,
+                    }
+                end
             end
         end
     end
@@ -173,24 +207,27 @@ end
 -- Draws a screen. `selection` is the keyboard/gamepad row index; mouseX/mouseY
 -- may be nil (no mouse). Hover wins over selection while the mouse is on a row.
 function widgets.draw(def, screenWidth, screenHeight, selection, mouseX, mouseY, uiScale)
-    local t = helpers.getPopupTime(def.id)
+    local static = def.static               -- overlay on the game (HUD): no backdrop, no pop-in
+    local t = static and 0 or helpers.getPopupTime(def.id)
 
     -- A screen's own `background` wins; otherwise it shows the shared menu
     -- background (config.menuBackground), with that background's dim.
-    local dim = def.dim
-    if def.background then
-        background.draw(def.background, screenWidth, screenHeight)
-    else
-        local shared = background.shared()
-        if shared then
-            background.draw(shared, screenWidth, screenHeight)
-            dim = shared.dim or dim
+    if not static then
+        local dim = def.dim
+        if def.background then
+            background.draw(def.background, screenWidth, screenHeight)
+        else
+            local shared = background.shared()
+            if shared then
+                background.draw(shared, screenWidth, screenHeight)
+                dim = shared.dim or dim
+            end
         end
-    end
 
-    if dim then
-        love.graphics.setColor(0, 0, 0, dim)
-        love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
+        if dim then
+            love.graphics.setColor(0, 0, 0, dim)
+            love.graphics.rectangle("fill", 0, 0, screenWidth, screenHeight)
+        end
     end
 
     local items, rows = widgets.layout(def, screenWidth, screenHeight, uiScale)
@@ -203,8 +240,13 @@ function widgets.draw(def, screenWidth, screenHeight, selection, mouseX, mouseY,
 
     for _, item in ipairs(items) do
         local r, g, b = resolveColor(item.color)
-        local scale, alpha = helpers.popIn(t, item.popDelay, item.popDuration)
-        if item.kind == "label" then
+        local scale, alpha = 1, 1
+        if not static then scale, alpha = helpers.popIn(t, item.popDelay, item.popDuration) end
+        if item.kind == "stat" then
+            love.graphics.setColor(r / 255, g / 255, b / 255, alpha)
+            love.graphics.setFont(getFont(item.fontSize * uiScale))
+            love.graphics.print(item.shownText, item.x, item.y)
+        elseif item.kind == "label" then
             helpers.withPop(screenWidth / 2, item.y + item.h / 2, scale, alpha, function()
                 love.graphics.setColor(r / 255, g / 255, b / 255, alpha)
                 love.graphics.setFont(getFont(item.fontSize * uiScale))

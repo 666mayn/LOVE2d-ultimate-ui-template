@@ -34,6 +34,6 @@ Every export is a **whole screen file, not a fragment**. It keeps providing the 
 - `{config.title}` in a text stays **live** (it follows `ultimate_ui/config.lua`); type over it to make it fixed text.
 - The sandbox's test background and dim are **not** written into an export unless you picked them
   yourself (**B**, **[ ]**, **- =**). If you did, ship the `ultimate_ui/background/` folder with your game.
-- Only pages built from `ui/widgets.lua` are exported (the main menu so far).
+- Only pages built from `ui/widgets.lua` are exported (main menu, pause menu and the in-game HUD so far).
 - If the project folder can't be written (running from a `.love`), exports go to the save folder (**F9**) and the
   on-screen message says so.
