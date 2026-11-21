@@ -3,21 +3,23 @@
 -- is a throwaway toy (a checkerboard square you move with the bound keys)
 -- -- delete it and drop in your own game. The rest shows how the menus,
 -- settings, rebinding, texture filter and loading screen plug together.
+--
+-- The whole UI system lives in the ultimate_ui/ folder and is pulled in with ONE
+-- require. Modules load lazily the first time you touch them (UI.input, UI.audio, ...).
 
-local ui = require("ui")
-local ui_state = require("ui_state")
-local config = require("config")
-local audio = require("audio")
-local fonts = require("fonts")
-local keybinds = require("keybinds")
-local controller = require("controller")
-local input = require("input")
-local other_settings = require("other_settings")
-local texture_filter_manager = require("texture_filter_manager")
-local crt_manager = require("crt_manager")
-local loading_screen = require("loading_screen")
-local intro_sequence = require("intro_sequence")
-local menu_input = require("menu_input")
+local UI = require("ultimate_ui")
+
+local ui = UI.ui
+local ui_state = UI.state
+local config = UI.config
+local input = UI.input
+local menu_input = UI.menu_input
+local texture_filter_manager = UI.textures
+local crt_manager = UI.crt
+local loading_screen = UI.loading
+local intro_sequence = UI.intro
+-- Also available (not used by this demo): UI.audio, UI.fonts, UI.keybinds,
+-- UI.controller, UI.other_settings, UI.widgets, UI.log
 
 local uiScale = 1
 
@@ -89,16 +91,11 @@ end
 function love.load()
     love.graphics.setBackgroundColor(0.06, 0.06, 0.09)
 
-    -- Order matters: the filter first, so anything created afterwards
-    -- (fonts excluded) already uses the saved mode.
-    texture_filter_manager.init()
-    crt_manager.init()
-    fonts.load()
-    keybinds.init()
-    controller.init()
-    other_settings.init()
-    ui_state.init()
-    loading_screen.init()
+    -- Initialises every ultimate_ui module in the right order (the texture filter
+    -- first, so anything created afterwards already uses the saved mode).
+    -- Want to change the title / version / font? UI.configure{ title = "..." } here,
+    -- or edit ultimate_ui/config.lua.
+    UI.init()
     updateUIScale()
 
     gameLoad()
@@ -130,7 +127,7 @@ function love.load()
     -- Optional startup videos (config.introVideos). Empty list = skipped.
     intro_sequence.start(config.introVideos, function()
         -- Intro finished (or none): good place to start menu music, e.g.
-        -- audio.playMusic("music/menu.ogg")
+        -- UI.audio.playMusic("music/menu.ogg")
         ui.resetPopupAnimation("mainMenu")
     end)
 end
@@ -229,10 +226,9 @@ end
 -- ==========================================
 -- DEV SANDBOX (optional)
 -- Run `love . --sandbox` for screen-jumping, a fake gamepad, auto-reload and
--- more (see sandbox/README.md). Without the flag this does nothing. Safe
--- to leave out of release builds: delete the sandbox/ folder (this block then skips itself).
+-- more (see ultimate_ui/sandbox/README.md). Without the flag this does nothing. Safe
+-- to leave out of release builds: delete ultimate_ui/sandbox/ (this block then skips itself).
 -- ==========================================
-if love.filesystem.getInfo("sandbox/init.lua") then
-    local sandbox = require("sandbox")
-    if sandbox.requested(arg) then sandbox.attach() end
+if UI.hasSandbox() and UI.sandbox.requested(arg) then
+    UI.sandbox.attach()
 end
