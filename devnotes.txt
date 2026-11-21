@@ -1,3 +1,8 @@
+- testing today - 11.21.26
+
+
+
+
 - need to utilize some pure lua drag and drop techniques with hud for editor polish in game_state
 - add more hp bar type feature options, changing size of buttons on the fly, more features and featurettes
 - polish code, buff out strange bugs like small lag on load, game_state polish, different button flying in options, etc.
