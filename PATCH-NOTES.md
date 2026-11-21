@@ -7,27 +7,20 @@ This file is the running record of what changed and why, so work can pick up whe
 
 ---
 
-## Patch: demo game, new reference screenshots, cleaner main.lua + nested `ultimate_ui/`
+## Patch: new reference screenshots, cleaner main.lua + nested `ultimate_ui/`
 
-1. **Added the SoBlock demo game, in its own repository** (SOBLOCK-REPO-URL). It contains the SoBlock installer
-   (`SoBlockSetup.exe`), a professional `README.md` and a MaynGames 2026 `LICENSE.md`. SoBlock is a polished,
-   playable block-stacking game that runs an early build of the template, so people can see the UI and the
-   editing tool inside a real game. The license states it is for experiencing the editing tool only, and is
-   NOT for redistribution, resale or use in other projects (the template and its editor are for that). It is
-   kept out of this repo so clones of the template stay small. The README links to it.
-2. **Improved reference screenshots, and fixed the main README to use them.** `reference_screenshots/` now holds
+1. **Improved reference screenshots, and fixed the main README to use them.** `reference_screenshots/` now holds
    exactly these eight images: `ui_editor_open`, `ui_editor_open_2`, `ui_editor_closed_2`,
    `ui_editor_keyboard_binds`, `ui_editor_controller_binds`, `ui_editor_other_settings`,
    `ui_editor_texture_settings_crt_off`, `ui_editor_texture_settings_crt_on`. The README's Screenshots section
    was rewritten as four two-column rows that reference only those files (the old `open_3`, `open_4_*`, `open_6`
-   and `open_7` links are gone). The README also gained a "Demo game: SoBlock" section and the folder layout
-   lists `reference_screenshots/`.
-3. **`main.lua` makes explicit calls, and everything is nested under `ultimate_ui/` for easy integration.**
+   and `open_7` links are gone). The folder layout in the README now lists `reference_screenshots/`.
+2. **`main.lua` makes explicit calls, and everything is nested under `ultimate_ui/` for easy integration.**
    `main.lua` talks to the library only through `local UI = require("ultimate_ui")` (`UI.init()`,
    `UI.configure{...}`, `UI.ui`, `UI.state`, `UI.input`, ...) and is the reference for hooking up the draw,
    keyboard, mouse and gamepad callbacks. The whole library lives in the one `ultimate_ui/` folder, so a game
    copies that single folder in with nothing to merge and nothing in its project root to collide with.
-4. **Sandbox overlay fix.** The F1 help panel and the bottom-left strip could disappear on every screen. The
+3. **Sandbox overlay fix.** The F1 help panel and the bottom-left strip could disappear on every screen. The
    sandbox saved its "hide overlay" (F10) state and restored it on each launch, and all versions share one save
    folder. Now `hidden` is never restored, and pressing F1 un-hides the overlay and opens the panel
    (`ultimate_ui/sandbox/init.lua`).

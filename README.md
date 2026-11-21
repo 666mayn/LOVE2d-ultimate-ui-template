@@ -22,10 +22,6 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 | :---: | :---: |
 | ![Textures screen with the CRT filter off](reference_screenshots/ui_editor_texture_settings_crt_off.png) | ![Textures screen with the Classic CRT filter on](reference_screenshots/ui_editor_texture_settings_crt_on.png) |
 
-## Demo game: SoBlock
-
-Want to see the template inside a finished game? **SoBlock** is a polished, playable block-stacking game built with an early build of this template, so you can see and feel the UI and the editing tool in a real game. It lives in its own repository: [SOBLOCK-REPO-URL](SOBLOCK-REPO-URL). It is a demonstration only and may not be redistributed, resold, or used in your own projects; to build your own game, use this template.
-
 ## Quick Start Guide
 
 **1. Run it.** Install [LÖVE](https://love2d.org) 11.x, then from the project folder:
