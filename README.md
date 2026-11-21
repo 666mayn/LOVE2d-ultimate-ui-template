@@ -22,6 +22,28 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 | :---: | :---: |
 | ![Textures screen with the CRT filter off](reference_screenshots/ui_editor_texture_settings_crt_off.png) | ![Textures screen with the Classic CRT filter on](reference_screenshots/ui_editor_texture_settings_crt_on.png) |
 
+## F1 Helper Menu: Feature Stack
+
+Run the template with `love . --sandbox` and press **F1** (or the backtick key) at any time, on any screen, in the menus or in the game. A live helper panel opens in the top-right corner, and a status strip sits in the bottom-left corner showing the current screen, window size and active modes, with a reminder of `F1 = help | F11 = edit`.
+
+![F1 helper menu panel](reference_screenshots/ui_editor_helper_widget.png)
+
+The panel is a cheat sheet and a live readout in one:
+
+| Section | What it gives you |
+| --- | --- |
+| **State** | Current screen, menu cursor row, whether a rebind is waiting, window size and UI scale, active texture filter and CRT filter, connected gamepads, mouse position, FPS, and how many `.lua` files auto-reload is watching |
+| **Jump to screen** | With the panel open, press `1`-`8` to go straight to Main, Pause, Settings, Keyboard, Controller, Other, Texture, or back into the Game, with no clicking through menus |
+| **Hotkeys** | `F2` window size presets, `F3` virtual gamepad, `F4` event log, `F5` restart, `F6` auto-reload, `F7` loading-screen preview, `F8` wipe saves (press twice), `F9` open the save folder, `F10` hide the overlay, `F12` clean screenshot |
+| **Editor** | `F11` edit mode, `B` background, `[` `]` blur, `-` `=` dim, `Ctrl+E` export the current page, `Ctrl+Shift+E` export all pages |
+
+A few notes:
+
+* It works in the play state too, so you can check the HUD and pause menu while a game is running.
+* `F12` screenshots are taken before the overlay is drawn, so they come out clean.
+* If you hide the overlay with `F10`, pressing `F1` brings it back. The hidden state is never restored on the next launch.
+* The helper is part of the dev sandbox only. Delete `ultimate_ui/sandbox/` before you ship and none of this is in your build.
+
 ## Quick Start Guide
 
 **1. Run it.** Install [LÖVE](https://love2d.org) 11.x, then from the project folder:
