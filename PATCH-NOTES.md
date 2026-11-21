@@ -88,60 +88,18 @@ background it is solid black as before.
 - **Verification:** my edits were reviewed by reading only; there was no LÖVE in my environment. The
   author has since run it in the sandbox and confirmed it works.
 
-### 5. Suggested commit message
+### 5. What shipped
 
-```
-Restructure into a drop-in ultimate_ui/ library with one entry point
+Both parts (the `ultimate_ui/` restructure and the shared menu background) are already committed and
+pushed to `main`. The history on GitHub is the source of truth for the exact commit messages; this file
+only summarises the changes above.
 
-Move the whole UI system into a single self-contained ultimate_ui/
-folder so it can be copied into any LÖVE project without colliding
-with the project's own input.lua / audio.lua / config.lua / ui/.
-main.lua and conf.lua stay at the root as the demo only.
-
-Library structure
-- New ultimate_ui/init.lua is the single entry point:
-  local UI = require("ultimate_ui"). Modules load lazily on first use
-  (UI.ui, UI.state, UI.input, UI.audio, UI.fonts, UI.keybinds,
-  UI.controller, UI.crt, UI.textures, UI.widgets, ...).
-- UI.init() sets up every module in the correct order; UI.configure{}
-  overrides config.lua values from game code; UI.path() resolves paths
-  inside the folder.
-- Every file finds its siblings relative to its own module name, so the
-  folder can be renamed or moved without editing anything. Nothing is
-  placed in the global namespace.
-- ui/, sandbox/, fonts/, background/, crt_filters/ and all top-level
-  modules moved under ultimate_ui/ (git tracks these as renames).
-- sandbox/ is dev-only and can be deleted before shipping; the main
-  file skips it automatically if it is missing.
-
-Demo + docs
-- main.lua rewritten to use the single UI entry point and now serves as
-  the reference for wiring draw / keyboard / mouse / gamepad callbacks.
-- README rewritten with a quick-start guide, module table and folder
-  layout; sandbox, fonts, background and exports READMEs updated for
-  the new paths.
-
-Shared menu background (new feature)
-- config.menuBackground = { image, blur, dim } is one background drawn
-  by every menu page (main, pause, settings, keyboard, controller,
-  other, texture) and the loading screen. Before, only widget screens
-  could show a background, so it vanished after the main menu.
-- helpers.drawMenuBackdrop() draws it plus a shared dim; widgets.draw
-  falls back to it when a screen has no background of its own (a
-  per-screen background still overrides it).
-- Sandbox: the default test background and the F11 editor's background
-  / blur / dim choices are mirrored into the shared background, and all
-  widget pages are applied at startup. Exports are unchanged, so the
-  test background never leaks into a drop-in page.
-- Defaults to nil, so projects that don't set it look as before.
-```
-
-### 6. Git state at the time of writing
+### 6. Git state
 
 - Branch `main`, remote `origin` = `https://github.com/666mayn/LOVE2d-ultimate-ui-template.git`.
-- The restructure was not yet committed. `git status` showed 50 renames and 56 files changed in total.
-- Suggested flow: `git checkout -b <branch>`, `git add -A`, commit, `git push -u origin <branch>`, then
-  open a pull request on GitHub and merge.
+- `PATCH-NOTES.md` was added in commit `ed4e5fc` ("Added PATCH-NOTES.md that will be updated per
+  iteration"). Add a new dated patch section above this one for each iteration and commit it with the
+  change it describes.
 
 ### 7. Possible follow-ups
 
