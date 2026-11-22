@@ -57,11 +57,20 @@ While a keyboard rebind is waiting for a key, the sandbox ignores every key
 
 ## Widget editor (F11)
 
-Edit what a screen says and what color it is, then export the page as a **drop-in replacement for its
-file**. Works on screens built from `ui/widgets.lua`: the main menu, the pause menu and the in-game HUD
-(game title + stats side panel); the rest get migrated. It works **in the game too**: press F11 while
-playing to edit the HUD, press Esc to pause and edit the pause menu.
+Edit what a screen says and what color it is, then export it as a **drop-in replacement**. **Every page** is
+editable: titles, buttons, row labels and hint lines on the main menu, pause menu, Settings, Keyboard,
+Controller, Other, Textures and the loading screen, plus the in-game HUD (game title + stats side panel).
+It works **in the game too**: press F11 while playing to edit the HUD, press Esc to pause and edit the pause menu.
 Its hints appear bottom-left, next to the F1 hint.
+
+Two kinds of page, one editor: the main menu, pause menu and HUD are *widget screens* (their layout is data,
+so an export is the whole page file). The other pages keep their layout in code and describe only their
+**texts** as data (`widgets.textPage`), so their export is **one file for all of them**, `ui/page_texts.lua`
+(see below). You click and type the same way on both. Not editable: values that change at runtime
+(`UNBOUND`, `ACTIVE`, `PRESS A KEY...`, the FPS counter) and the loading bar.
+
+Edit mode **holds the loading screen open** (its timer freezes), so you have time to click its title.
+Open it with **F7** (loading preview), or Ctrl+click PLAY.
 
 | Action | How |
 |--------|-----|
@@ -72,8 +81,8 @@ Its hints appear bottom-left, next to the F1 hint.
 | Deselect | **Esc** (while something is selected) |
 | Pause / walk the menu | With nothing selected, **Esc**, the arrow keys and **Enter** still go to the game, so you can pause, move through the pause menu and resume without leaving edit mode |
 | Press a button (use the game) | **Ctrl+click**: clicks the real PLAY / RESUME / EXIT TO MENU instead of selecting it |
-| Export this page | **Ctrl+E** writes `exports/ultimate_ui/ui/main_menu.lua` (the page's own project path, under `exports/`) |
-| Export all pages | **Ctrl+Shift+E** writes every page, edits included |
+| Export this page | **Ctrl+E** writes `exports/ultimate_ui/ui/main_menu.lua` (the page's own project path, under `exports/`). On Settings / Keyboard / Controller / Other / Textures / Loading it writes `exports/ultimate_ui/ui/page_texts.lua` instead |
+| Export all pages | **Ctrl+Shift+E** writes every page, edits included (`page_texts.lua` once, for all the text pages) |
 | Test background | **On by default** in the sandbox (blur 8, dim 30%; change `defaultBackground` in `ultimate_ui/sandbox/config.lua`, or set it to `nil` for none). **B** (nothing selected) cycles the images in `ultimate_ui/background/`, then off |
 | Blur | **[** / **]** less / more (0 = sharp, 10 = heaviest, default 8) |
 | Dim | **-** / **=** less / more of the menu's black overlay |
@@ -85,7 +94,13 @@ Its hints appear bottom-left, next to the F1 hint.
 2. Drag `exports/ultimate_ui` onto the project root and choose Replace (see [`exports/README.md`](../exports/README.md)).
 3. The `ultimate_ui/ui/` files are now your custom pages; take them into your build.
 
-An export is the whole screen file, so nothing else has to change. In text, `{config.title}` stays live;
+An export of a widget screen is the whole screen file, so nothing else has to change.
+
+`page_texts.lua` lists **only what you changed** on the hand-coded pages, as
+`[page id]["title" | "hint" | "rows#<row key>"] = { text = "...", color = ... }` (a row key is an action name such as
+`back`), and the pages read it at startup. It replaces the placeholder `ultimate_ui/ui/page_texts.lua`, which is
+also where you can write the same entries by hand. Row keys are action names, not positions, so an edit keeps
+following its row if you add or reorder rows. In text, `{config.title}` stays live;
 `showIf = "config.subtitle"` hides a widget while that value is empty.
 
 While something is selected, typed keys go to the editor (so number keys don't jump screens);

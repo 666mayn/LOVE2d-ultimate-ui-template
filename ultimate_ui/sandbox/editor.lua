@@ -26,7 +26,12 @@
 -- the sandbox's auto-reload and restarts. Each saved edit also remembers what the
 -- file said when you made it; if the file changes underneath (you dropped an
 -- export in, or edited it by hand), that edit is dropped and the file wins.
--- Only screens built from ui/widgets.lua are editable (see widgets.screens).
+-- Only screens built from ui/widgets.lua are editable (see widgets.screens): the widget
+-- screens (main menu, pause menu, HUD) AND the hand-coded "text pages" (Settings, Keyboard,
+-- Controller, Other, Textures, Loading), whose titles / buttons / rows / hints are data via
+-- widgets.textPage. A text page cannot be replaced by a generated file (its layout is code),
+-- so Ctrl+E on one writes exports/<lib>/ui/page_texts.lua instead: ONE file holding every text
+-- page's edited texts and colors, which the pages read at startup.
 
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local serialize = require(ROOT .. ".sandbox.serialize")
@@ -65,6 +70,9 @@ local applied = setmetatable({}, { __mode = "k" })     -- defs already given the
 local bgBlur = 8                 -- blur level used when a background is switched on
 
 function editor.setLogger(fn) logger = fn or function() end end
+local notifier = function() end
+-- fn(text, kind)  kind = "ok" | "warn" | "error": the big save toast (see sandbox/overlay.lua)
+function editor.setNotifier(fn) notifier = fn or function() end end
 function editor.active() return active end
 
 -- ---------------------------------------------------------------------------
@@ -96,7 +104,8 @@ local function targetsOf(def)
         if w.type == "label" then
             map[w.id] = w
         elseif w.type == "stack" or w.type == "stats" then
-            for i, it in ipairs(w.items) do map[w.id .. "#" .. i] = it end
+            -- a text page's row has a stable `key` (an action name); widget stacks use the position
+            for i, it in ipairs(w.items) do map[w.id .. "#" .. (it.key or i)] = it end
         end
     end
     return map
@@ -171,8 +180,11 @@ end
 -- Called by the sandbox every time a widget screen is drawn (and by export-all);
 -- the first time a screen is seen, its saved edits are applied.
 function editor.seen(def)
-    if applied[def] then return end
+    -- A text page creates its rows lazily as they are first drawn (def.pending): apply the
+    -- saved edits again so the new rows get theirs.
+    if applied[def] and not def.pending then return end
     applied[def] = true
+    def.pending = nil
     loadEdits()
     local mine = edits[def.id] or {}
     local pr = { dim = def.dim, bg = bgSig(def.background),
@@ -182,7 +194,7 @@ function editor.seen(def)
 
     -- A static screen (the in-game HUD) draws over the game with no backdrop, so it
     -- has no dim / background to restore or mirror.
-    if not def.static then
+    if not def.static and not def.textOnly then
     -- dim (older saves stored a bare number)
     local d = mine.__dim
     if type(d) == "number" then d = { value = d } end
@@ -273,7 +285,7 @@ end
 
 local function itemKey(item)
     if item.kind == "label" then return item.id end
-    return item.id .. "#" .. item.index
+    return item.id .. "#" .. (item.key or item.index)
 end
 
 -- Screen-space box of an item (labels use the real text width, not the full row).
@@ -347,6 +359,7 @@ local function cycleBackground()
     if not last then return logger("no widget screen to put a background behind") end
     local def = last.def
     if def.static then return logger("the HUD draws over the game: it has no background") end
+    if def.textOnly then return logger("this page shows the shared menu background: change it with B on the main menu") end
     local list = bgui.list()
     if #list == 0 then return logger("no images in %s/background/ (add a png or jpg)", LIB_DIR) end
 
@@ -381,6 +394,7 @@ local function changeDim(delta)
     if not last then return logger("no widget screen to dim") end
     local def = last.def
     if def.static then return logger("the HUD draws over the game: it has no dim") end
+    if def.textOnly then return logger("this page shows the shared menu background: change its dim with - = on the main menu") end
     def.dim = math.max(0, math.min(1, math.floor(((def.dim or 0) + delta) * 20 + 0.5) / 20))
     loadEdits()
     edits[def.id] = edits[def.id] or {}
@@ -509,34 +523,60 @@ local function dirOf(p) return p:match("^(.*)/[^/]*$") or "" end
 -- Writes outside the save folder when possible (so the file lands in the
 -- project's exports/ folder); falls back to the save folder otherwise.
 -- Returns the path to show (relative), the full path -- or nil, error.
+local exportProblems = {}      -- why writes fell back / failed, shown after the export finishes
+
+local function trace(fmt, ...)
+    local ok, msg = pcall(string.format, fmt, ...)
+    msg = ok and msg or tostring(fmt)
+    print("[sandbox] " .. msg)
+    local old = love.filesystem.getInfo("ultimate_ui_export_log.txt") and love.filesystem.read("ultimate_ui_export_log.txt") or ""
+    pcall(love.filesystem.write, "ultimate_ui_export_log.txt", old .. os.date("%H:%M:%S ") .. msg .. "\n")
+end
+
 local function writeExport(relFile, src)
     local rel = EXPORT_DIR .. "/" .. relFile
     local base = love.filesystem.getSource and love.filesystem.getSource() or nil
+    trace("export %s  (source=%s)", rel, tostring(base))
     if base and base ~= "" then
         local root = base:gsub("[/\\]+$", "")
         local path = root .. "/" .. rel
-        local f = io.open(path, "wb")
+        local f, ioErr = io.open(path, "wb")
         if not f then
-            -- exports/<folder> may not exist yet: create it once, then retry.
+            trace("io.open failed: %s -- trying to create the folder", tostring(ioErr))
             local dir = root .. "/" .. dirOf(rel)
-            if not dir:find('["`$\n]') then
-                if isWindows() then os.execute('mkdir "' .. dir:gsub("/", "\\") .. '" >nul 2>nul')
-                else os.execute('mkdir -p "' .. dir .. '" 2>/dev/null') end
-                f = io.open(path, "wb")
+            if dir:find('["`$\n]') then
+                trace("folder path has a character the shell step refuses: %s", dir)
+            else
+                local cmd
+                if isWindows() then cmd = 'mkdir "' .. (dir:gsub("/", "\\")) .. '"'
+                else cmd = 'mkdir -p "' .. dir .. '"' end
+                local okx, how, code = os.execute(cmd)
+                trace("os.execute(%s) -> %s %s %s", cmd, tostring(okx), tostring(how), tostring(code))
+                f, ioErr = io.open(path, "wb")
+                if not f then trace("io.open still failed: %s", tostring(ioErr)) end
             end
         end
         if f then
-            f:write(src)
+            local okw, werr = f:write(src)
             f:close()
-            return rel, path
+            if okw then
+                trace("wrote %s", path)
+                return rel, path
+            end
+            trace("write failed: %s", tostring(werr))
         end
+        exportProblems[#exportProblems + 1] = "could not write into the project folder (" .. tostring(ioErr) .. ")"
+    else
+        exportProblems[#exportProblems + 1] = "love.filesystem.getSource() gave nothing"
     end
     love.filesystem.createDirectory(dirOf(rel))
     local ok, err = love.filesystem.write(rel, src)
     if ok then
         local full = love.filesystem.getSaveDirectory() .. "/" .. rel
-        return rel .. "  (save folder)", full
+        trace("fell back to the save folder: %s", full)
+        return rel .. "  (SAVE FOLDER, F9)", full
     end
+    trace("save-folder write failed too: %s", tostring(err))
     return nil, err
 end
 
@@ -546,11 +586,132 @@ local function editableList()
     return #ids > 0 and table.concat(ids, ", ") or "none"
 end
 
-local function exportDef(def, quiet)
-    local ok, src, warnings, file = pcall(exportSource, def)
-    if not ok then logger("export failed (%s): %s", tostring(def.id), tostring(src)) return false end
+-- The text pages' export: ONE file, ui/page_texts.lua, holding every text / color that differs
+-- from what the page's code says. Pages read it at startup (widgets.textPage), so installing it
+-- is the same drag-and-drop as any other export.
+local PAGE_TEXTS_FILE = "ui/page_texts.lua"
+
+local function fail(fmt, ...)
+    local ok, msg = pcall(string.format, fmt, ...)
+    msg = ok and msg or tostring(fmt)
+    exportProblems[#exportProblems + 1] = msg
+    trace("%s", msg)
+    logger("%s", msg)
+end
+
+local function pageTextsSource()
+    local data, count = {}, 0
+    for _, def in ipairs(widgets.screens) do
+        if def.textOnly then
+            editor.seen(def)                      -- applies saved edits to pages not drawn yet
+            for key, t in pairs(targetsOf(def)) do
+                local d = widgets.defaults[t]
+                if d then
+                    local e = {}
+                    if type(t.text) == "string" and t.text ~= d.text then e.text = t.text end
+                    if toHex(t.color) ~= toHex(d.color) then e.color = t.color end
+                    if next(e) then
+                        data[def.id] = data[def.id] or {}
+                        data[def.id][key] = e
+                        count = count + 1
+                    end
+                end
+            end
+        end
+    end
+    -- Rows are created lazily when a page is first DRAWN, so for a page you have not opened
+    -- this session they are not targets yet. Keep what we know about them anyway -- the
+    -- installed page_texts.lua first, then your saved editor edits on top -- otherwise
+    -- exporting would silently drop (and overwrite) those rows.
+    loadEdits()
+    local installed = widgets.pageTexts()
+    for _, def in ipairs(widgets.screens) do
+        if def.textOnly then
+            local targets = targetsOf(def)
+            local function keep(key, e)
+                if type(key) == "string" and key:sub(1, 5) == "rows#" and not targets[key] and type(e) == "table" then
+                    local o = {}
+                    if type(e.text) == "string" then o.text = e.text end
+                    if e.color ~= nil then o.color = e.color end
+                    if next(o) then
+                        data[def.id] = data[def.id] or {}
+                        data[def.id][key] = o
+                        count = count + 1
+                    end
+                end
+            end
+            for key, e in pairs(installed[def.id] or {}) do keep(key, e) end
+            for key, e in pairs(edits[def.id] or {}) do keep(key, e) end
+        end
+    end
+    local where = LIB_DIR .. "/" .. PAGE_TEXTS_FILE
+    local L = {
+        "-- " .. where .. "  (the hand-coded pages' texts)",
+        "-- Exported from the sandbox editor on " .. os.date("%Y-%m-%d %H:%M") .. ".",
+        "--",
+        "-- DROP-IN: copy this file over " .. where .. " in your project and restart. The Settings,",
+        "-- Keyboard, Controller, Other, Textures and Loading pages read it at startup and show these",
+        "-- texts / colors instead of the ones in their code. Only what you changed is listed.",
+        "--",
+        "-- Layout: [page id][\"title\" | \"hint\" | \"rows#<row key>\"] = { text = \"...\", color = ... }",
+        "-- Edit it by hand, or tweak it again in the editor (love . --sandbox, F11, Ctrl+E).",
+        "",
+        "return " .. serialize.serialize(data),
+        "",
+    }
+    return table.concat(L, "\n"), count, where
+end
+
+local function exportPageTexts(quiet)
+    local ok, src, count, file = pcall(pageTextsSource)
+    if not ok then fail("export failed (page texts): %s", tostring(src)) return false end
     local shown, full = writeExport(file, src)
-    if not shown then logger("export failed (%s): %s", tostring(def.id), tostring(full)) return false end
+    if not shown then fail("export failed (page texts): %s", tostring(full)) return false end
+    print("[sandbox] exported " .. tostring(full))
+    if not quiet then
+        logger("exported %s (%d edited text(s))  -- drop it over %s", shown, count, file)
+    end
+    return true, count
+end
+
+-- The shared menu background (what every page behind the menus shows) as ONE small file,
+-- ui/menu_background.lua, which ui/background.lua reads when config.menuBackground is nil.
+-- This is what makes the picture appear in plain `love .` after you install the export.
+local MENU_BG_FILE = "ui/menu_background.lua"
+
+local function exportMenuBackground(quiet)
+    local spec = bgui.shared()
+    local where = LIB_DIR .. "/" .. MENU_BG_FILE
+    local body
+    if spec and spec.image then
+        body = "return " .. serialize.serialize({ image = spec.image, blur = spec.blur or bgBlur, dim = spec.dim or 0.3 })
+    else
+        body = "return nil"
+    end
+    local src = table.concat({
+        "-- " .. where .. "  (the shared menu background)",
+        "-- Exported from the sandbox editor on " .. os.date("%Y-%m-%d %H:%M") .. ".",
+        "--",
+        "-- DROP-IN: copy this file over " .. where .. ". Every menu page draws this picture, in plain",
+        "-- `love .` too. `return nil` = no background. config.menuBackground, if set, wins over this file.",
+        "-- Ship the image with your game.",
+        "",
+        body,
+        "",
+    }, "\n")
+    local shown, full = writeExport(where, src)
+    if not shown then fail("export failed (menu background): %s", tostring(full)) return false end
+    print("[sandbox] exported " .. tostring(full))
+    if not quiet then logger("exported %s  -- drop it over %s", shown, where) end
+    return true
+end
+
+local function exportDef(def, quiet)
+    if def.textOnly then return exportPageTexts(quiet) end
+    local ok, src, warnings, file = pcall(exportSource, def)
+    if not ok then fail("export failed (%s): %s", tostring(def.id), tostring(src)) return false end
+    local shown, full = writeExport(file, src)
+    if not shown then fail("export failed (%s): %s", tostring(def.id), tostring(full)) return false end
     print("[sandbox] exported " .. tostring(full))
     for _, w in ipairs(warnings) do logger("note: %s", w) end
     if not quiet then logger("exported %s  -- drop it over %s", shown, file) end
@@ -558,12 +719,35 @@ local function exportDef(def, quiet)
 end
 
 -- Ctrl+E: the page you're looking at.
+local function summarize(what, savedCount)
+    local where = EXPORT_DIR .. "/" .. LIB_DIR .. "/"
+    if #exportProblems > 0 then
+        local inSave = savedCount and savedCount > 0
+        notifier((inSave and "SAVED, BUT NOT TO THE PROJECT FOLDER: " or "SAVE FAILED: ") .. exportProblems[1],
+            inSave and "warn" or "error")
+    elseif savedCount and savedCount > 0 then
+        notifier(string.format("SAVED  %d file%s  >  %s", savedCount, savedCount == 1 and "" or "s", where), "ok")
+    else
+        notifier("NOTHING SAVED", "error")
+    end
+    if #exportProblems > 0 then
+        logger("%s: PROBLEM: %s  (full log: ultimate_ui_export_log.txt in the save folder, F9)",
+            what, exportProblems[1])
+    end
+    exportProblems = {}
+end
+
 function editor.export()
+    exportProblems = {}
     local last = current()
     if not last then
-        return logger("nothing to export: this page isn't widget-based yet (editable: %s)", editableList())
+        notifier("NOTHING SAVED: no editable page on screen", "error")
+        return logger("nothing to export: nothing editable is on screen (editable: %s)", editableList())
     end
-    exportDef(last.def)
+    local n = 0
+    if exportDef(last.def) then n = n + 1 end
+    if exportMenuBackground(true) then n = n + 1 end
+    summarize("export", n)
 end
 
 -- Lets every widget page apply its saved edits / the default test background now, even
@@ -576,14 +760,22 @@ end
 -- Ctrl+Shift+E: every editable page, edits applied -- one complete set in exports/.
 -- Pages you never touched come out exactly as their files describe them.
 function editor.exportAll()
+    exportProblems = {}
     loadEdits()
     local done, failed, edited = 0, 0, 0
+    local haveTextPages = false
     for _, def in ipairs(widgets.screens) do
         editor.seen(def)                       -- applies saved edits to pages not drawn yet
         local e = edits[def.id]
         if e and next(e) then edited = edited + 1 end
-        if exportDef(def, true) then done = done + 1 else failed = failed + 1 end
+        if def.textOnly then
+            haveTextPages = true               -- all text pages go into ONE file, written below
+        elseif exportDef(def, true) then done = done + 1 else failed = failed + 1 end
     end
+    if haveTextPages then
+        if exportPageTexts(true) then done = done + 1 else failed = failed + 1 end
+    end
+    if exportMenuBackground(true) then done = done + 1 else failed = failed + 1 end
     if done == 0 and failed == 0 then return logger("nothing to export: no widget-based pages found") end
     logger("exported %d page(s) (%d edited) to %s/%s", done, edited, EXPORT_DIR,
         failed > 0 and ("  -- " .. failed .. " FAILED, see above") or "")
@@ -591,6 +783,68 @@ function editor.exportAll()
         logger("install: drag %s/%s onto the project root, choose Replace, then restart",
             EXPORT_DIR, LIB_DIR:match("^[^/]+"))
     end
+    summarize("export all", done)
+end
+
+-- ---------------------------------------------------------------------------
+-- Export "cut": a black screen with moving dots while the (blocking) export runs
+-- ---------------------------------------------------------------------------
+-- Exporting writes files and can stall a frame or two, so instead of freezing on the page the
+-- sandbox cuts to black with ". / . . / . . ." cycling, runs the export once that frame is
+-- really on screen, holds the cut a moment, then cuts back and the save toast shows.
+local job = nil                       -- { kind, start, frames, ran, doneAt }
+local onExported = function() end
+local CUT_MIN_AFTER = 0.45            -- seconds the cut stays up after the export finished
+
+function editor.setOnExported(fn) onExported = fn or function() end end
+function editor.exporting() return job ~= nil end
+
+function editor.startExport(kind)
+    if job then return end            -- already exporting
+    job = { kind = kind, start = love.timer.getTime(), frames = 0, ran = false }
+    logger("%s pressed: exporting...", kind == "all" and "Ctrl+Shift+E" or "Ctrl+E")
+end
+
+-- Called every frame by the sandbox (love.update).
+function editor.update()
+    if not job then return end
+    if not job.ran and job.frames >= 2 then          -- the black frame has been presented
+        job.ran = true
+        local ok, err = pcall(function()
+            if job.kind == "all" then editor.exportAll() else editor.export() end
+        end)
+        if not ok then
+            logger("EXPORT CRASHED: %s", tostring(err))
+            trace("EXPORT CRASHED: %s", tostring(err))
+            notifier("EXPORT CRASHED: " .. tostring(err), "error")
+        end
+        pcall(onExported)
+        job.doneAt = love.timer.getTime()
+    elseif job.ran and love.timer.getTime() - job.doneAt >= CUT_MIN_AFTER then
+        job = nil
+    end
+end
+
+-- Called last in love.draw, over everything (overlay included).
+function editor.drawCut()
+    if not job then return end
+    job.frames = job.frames + 1
+    local font = theme.font()
+    local w, h = love.graphics.getDimensions()
+    love.graphics.push("all")
+    require(ROOT .. ".sandbox.overlay").cleanState()
+    love.graphics.setColor(0, 0, 0, 1)
+    love.graphics.rectangle("fill", 0, 0, w, h)
+    local n = math.floor((love.timer.getTime() - job.start) * 3) % 3 + 1
+    local dots = (". "):rep(n):sub(1, -2)
+    love.graphics.setFont(font)
+    love.graphics.setColor(1, 1, 1, 1)
+    -- "exporting" stays put; the dots grow after it (. / . . / . . .) and start over.
+    -- Anchored on the widest form so the word doesn't shift as the dots change.
+    local label = "exporting "
+    local x = math.floor((w - font:getWidth(label .. ". . .")) / 2)
+    love.graphics.print(label .. dots, x, math.floor(h / 2 - font:getHeight() / 2))
+    love.graphics.pop()
 end
 
 -- ---------------------------------------------------------------------------
@@ -602,18 +856,20 @@ function editor.toggle()
     logger("edit mode %s", active and "ON" or "off")
 end
 
-local function ctrl() return love.keyboard.isDown("lctrl", "rctrl") end
+local function ctrl() return love.keyboard.isDown("lctrl", "rctrl", "lgui", "rgui") end   -- Cmd counts on macOS
 local function shift() return love.keyboard.isDown("lshift", "rshift") end
 
 -- Returns true when the editor consumed the key.
 function editor.keypressed(key)
-    if not active then return false end
     if key:match("^f%d+$") then return false end      -- sandbox hotkeys keep working
 
+    -- Export works ALWAYS (edit mode or not). Your edits are saved the moment you make them,
+    -- so exporting never needs the editor open.
     if key == "e" and ctrl() then
-        if shift() then editor.exportAll() else editor.export() end
+        editor.startExport(shift() and "all" or "one")
         return true
     end
+    if not active then return false end
     if key == "escape" then
         if sel then sel = nil return true end
         return false          -- nothing selected: Esc is the game's (pause / back)
@@ -719,11 +975,15 @@ function editor.hints()
     if not active then return nil end
     local last = current()
     if not last then
-        return { "EDIT MODE: this page isn't widget-based yet. Editable: " .. editableList()
+        return { "EDIT MODE: nothing editable is on screen right now. Editable pages: " .. editableList()
                  .. "  |  F11 exit" }
     end
     local def = last.def
-    local target = EXPORT_DIR .. "/" .. projectFile(def)
+    local target = EXPORT_DIR .. "/" .. (def.textOnly and (LIB_DIR .. "/" .. PAGE_TEXTS_FILE) or projectFile(def))
+    if not sel and def.textOnly then
+        return { "EDIT MODE: click a title, button or hint to select it  |  Ctrl+click = press it  |  Esc = back",
+                 "Ctrl+E export all page texts > " .. target .. "  |  Ctrl+Shift+E export all pages  |  F11 exit" }
+    end
     if not sel and def.static then
         return { "EDIT MODE (HUD): click the title or a stat row to select it  |  Esc = pause",
                  "Ctrl+E export this page > " .. target .. "  |  Ctrl+Shift+E export all pages  |  F11 exit" }

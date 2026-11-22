@@ -8,7 +8,18 @@
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local ui_state = require(ROOT .. ".ui_state")
 local helpers = require(ROOT .. ".ui.helpers")
+local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
+
+-- The page's texts as data, so the sandbox editor (F11) can edit them. Row labels are
+-- keyed by the row id (an action name), so a saved edit follows its row.
+local page = widgets.textPage{
+    id = "otherSettingsMenu", file = "ui/other_settings_menu.lua",
+    labels = {
+        { id = "title", text = "O T H E R  S E T T I N G S", fontSize = 52, color = "rainbow" },
+        { id = "hint",  text = "Click a setting to cycle its value -- [Esc] or [B] to go back", fontSize = 18, color = { 0.6, 0.6, 0.6 } },
+    },
+}
 local other_settings = require(ROOT .. ".other_settings")
 
 local other_settings_menu = {}
@@ -74,12 +85,20 @@ function other_settings_menu.drawOtherSettingsMenu(screenWidth, screenHeight, se
     -- to other_settings.lua's ROW_DEFS later instead of clipping.
     local titleGap = 90 * uiScale
     local titleY = startY - titleGap
+    local title = page.label("title")
+    local titleText = widgets.resolveText(title.text)
+    local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
     helpers.withPop(centerX, titleY + (52 * uiScale) / 2, titleScale, titleAlpha, function()
-        love.graphics.setColor(r/255, g/255, b/255, titleAlpha)
+        love.graphics.setColor(tr/255, tg/255, tb/255, titleAlpha)
         love.graphics.setFont(getFont(52 * uiScale))
-        love.graphics.printf("O T H E R  S E T T I N G S", 0, titleY, screenWidth, "center")
+        love.graphics.printf(titleText, 0, titleY, screenWidth, "center")
     end)
+    -- What was drawn, for the sandbox editor (see widgets.textPage).
+    local reported = {
+        { kind = "label", id = "title", text = titleText, fontSize = 52, color = title.color,
+          x = 0, y = titleY, w = screenWidth, h = 52 * uiScale },
+    }
 
     local baseDelay = 0.15
     local stagger = 0.04
@@ -89,32 +108,42 @@ function other_settings_menu.drawOtherSettingsMenu(screenWidth, screenHeight, se
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
         local scale, alpha = helpers.popIn(t, baseDelay + (i - 1) * stagger, 0.35)
+        local entry = page.item(row.id, row.label)
+        local rowText = widgets.resolveText(entry.text)
+        local rr, rg, rb = page.rgb(entry, r, g, b)
+        reported[#reported + 1] = { kind = "button", id = "rows", key = row.id, index = i, text = rowText,
+            color = entry.color, x = centerX - rowWidth / 2, y = y, w = rowWidth, h = rowHeight }
 
         helpers.withPop(centerX, y + rowHeight / 2, scale, alpha, function()
             local isSelected = (selection == i)
 
             if row.type == "cycle" then
                 local valueText = other_settings.getCurrentLabel(row.id)
-                drawRow(row.label, valueText, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, uiScale, r, g, b, alpha)
+                drawRow(rowText, valueText, centerX, y, rowWidth, rowHeight,
+                    isSelected, hovered, uiScale, rr, rg, rb, alpha)
 
             elseif row.type == "action" then
-                helpers.drawScaledButton(row.label, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, false, uiScale, r, g, b, alpha)
+                helpers.drawScaledButton(rowText, centerX, y, rowWidth, rowHeight,
+                    isSelected, hovered, false, uiScale, rr, rg, rb, alpha)
             end
         end)
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
     local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1)
+    local hint = page.label("hint")
+    local hintText = widgets.resolveText(hint.text)
+    local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
-        love.graphics.setColor(0.6, 0.6, 0.6, hintAlpha)
+        love.graphics.setColor(hr/255, hg/255, hb/255, hintAlpha)
         love.graphics.setFont(getFont(18 * uiScale))
-        love.graphics.printf("Click a setting to cycle its value -- [Esc] or [B] to go back",
-            0, hintY, screenWidth, "center")
+        love.graphics.printf(hintText, 0, hintY, screenWidth, "center")
     end)
+    reported[#reported + 1] = { kind = "label", id = "hint", text = hintText, fontSize = 18, color = hint.color,
+        x = 0, y = hintY, w = screenWidth, h = 18 * uiScale }
 
     love.graphics.setColor(1, 1, 1, 1)
+    page.report(reported, screenWidth, screenHeight, uiScale)
 end
 
 -- Returns:

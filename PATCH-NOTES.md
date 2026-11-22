@@ -1,9 +1,163 @@
 # PATCH NOTES
 
 Project: LOVE2d Ultimate UI Template
-Status: shared menu background confirmed working by the author in the sandbox (`love . --sandbox`).
+Status: every menu is editable in the F11 editor, and the export workflow (always-on keys, cut screen, save toast, shared-background export) is confirmed working by the author in real LOVE (`love . --sandbox`).
 
 This file is the running record of what changed and why, so work can pick up where it left off.
+
+---
+
+## Patch: exports fixed + polished (always-on keys, cut screen, save toast), shared background in plain `love .`
+
+**Problem:** exporting appeared to do nothing, and the background seen in the sandbox never showed in plain `love .`.
+
+**Causes found**
+
+1. **Export keys only worked in F11 edit mode.** `editor.keypressed` returned immediately when edit mode was off, so
+   `Ctrl+E` / `Ctrl+Shift+E` went to the game. This was the main reason "nothing saves".
+2. **Row edits on unopened pages were dropped.** Text-page rows are created lazily on first draw, so `Ctrl+Shift+E`
+   skipped saved edits for any page not opened this session and overwrote `page_texts.lua` without them.
+3. **The background was sandbox-only.** The test background was mirrored into the shared background at runtime only;
+   exports never wrote it anywhere plain `love .` reads, and `config.menuBackground` is `nil`.
+4. **Mac:** only Ctrl counted, not Cmd.
+5. **Silent failures:** a write that fell back to the save folder, or failed, was easy to miss (the last log line
+   overwrote the reason).
+
+**Fix / new behaviour**
+
+* **Export is always ready.** `Ctrl+E` (page on screen) and `Ctrl+Shift+E` (all pages) work in or out of F11 edit mode;
+  `Cmd` works like `Ctrl` on macOS. Every other editor key still needs edit mode.
+* **Cut screen.** The export is deferred until a black frame is on screen, then runs: black screen with a small white
+  `exporting . . .` (dots cycle 1 / 2 / 3), in the template font, held briefly after the write finishes.
+* **Save toast.** Top-center banner after every export, about 3.5 s: green `SAVED  N files  >  exports/ultimate_ui/`,
+  amber if it fell back to the save folder, red with the reason if it failed or nothing was editable.
+* **Shared background export.** New `ui/menu_background.lua` (`{ image, blur, dim }` or `return nil`), written by both
+  export keys and read by `background.shared()` when `config.menuBackground` is nil. It ships pointing at the bundled
+  image, so plain `love .` shows the background. `config.menuBackground` still wins.
+* **Unopened pages are exported.** `page_texts.lua` now keeps row edits for pages not drawn yet (installed file first,
+  then saved editor edits on top).
+* **Diagnostics.** Each write step records its real error; a failure shows as a red toast and everything is appended to
+  `ultimate_ui_export_log.txt` in the save folder (F9), including the path tried and any `RESTART:` reason.
+* **Auto-reload guard.** The file watcher is paused during an export and re-baselined afterwards, so the export cannot
+  trigger a restart that wipes the toast.
+* **Editor crash guard.** The export runs in a protected call; an error shows as `EXPORT CRASHED: ...` instead of
+  taking the sandbox down.
+
+| File | Change |
+| --- | --- |
+| `ultimate_ui/sandbox/editor.lua` | Always-on export keys (+ Cmd), deferred export job + cut screen (`startExport`, `update`, `drawCut`), save-toast notifier, write diagnostics and log, lazy-row fix, `menu_background.lua` export. |
+| `ultimate_ui/sandbox/init.lua` | Calls `editor.update()` / `editor.drawCut()`, wires the notifier, pauses + re-baselines the watcher around exports, logs restart reasons, passes the save toast to the overlay. |
+| `ultimate_ui/sandbox/overlay.lua` | Draws the top-center save toast. |
+| `ultimate_ui/ui/menu_background.lua` | **New.** Shared background data file (see above). |
+| `ultimate_ui/ui/background.lua` | `background.shared()` falls back to `ui/menu_background.lua`; turning the background off in the editor beats the file. |
+| `ultimate_ui/ui/widgets.lua` | New `widgets.pageTexts()` (the installed `page_texts.lua`). |
+| `ultimate_ui/config.lua`, `ultimate_ui/background/README.md` | Notes for the new fallback. |
+| `README.md`, `PATCH-NOTES.md` | All screenshots moved to the top; new "Edit every menu, export in one keypress" section. |
+
+**Verification:** the author ran it in real LOVE and confirmed exports now write, the cut screen and toast appear, and
+the exported files (`main_menu`, `pause_menu`, `hud_screen`, `page_texts`, `menu_background`) are correct. The lazy-row
+fix, the background fallback in plain mode and the deferred-export flow were also checked in a stubbed-LOVE harness.
+
+**Not yet covered:** `checks.lua` does not validate `ui/menu_background.lua` (a wrong image path there will not warn at
+startup). The cause of an auto-reload seen right after exporting was not pinned down; the guard above should prevent it,
+and any restart reason is now in `ultimate_ui_export_log.txt`.
+
+---
+
+## Patch: every page's text is editable in the F11 editor
+
+**Problem:** the F11 editor only worked on the main menu, pause menu and HUD. Settings, Keyboard, Controller,
+Other, Textures and the loading screen draw themselves in code, so their titles and buttons could not be selected.
+
+**Fix:** those pages keep their layout and logic, but their strings are now data. A new `widgets.textPage{...}`
+gives a page `page.label("title")`, `page.item(<stable row key>, <default text>)`, `page.rgb(...)` and
+`page.report(items, w, h, uiScale)`. The page reads every text through it and reports the boxes it drew, which is all
+the editor needs to select, retype and recolor them exactly like a widget screen.
+
+1. **Editable now:** the title and hint line of every page, every button / row label (Settings categories, keybind
+   and controller action rows, Other settings rows, texture-filter and CRT rows, RESET / BACK buttons) and the
+   loading screen's title. `{config.title}`-style bindings work in all of them.
+2. **Export.** These pages cannot be replaced by a generated file (their layout is code), so Ctrl+E on one of them
+   writes **one** file for all of them: `exports/ultimate_ui/ui/page_texts.lua`, listing only what differs from the
+   code. Ctrl+Shift+E writes it too, once. Install it like any other export; `ui/page_texts.lua` is read at startup by
+   `widgets.textPage`, **with or without the sandbox** (a missing file or a file with an error means no overrides).
+   A placeholder `ui/page_texts.lua` (`return {}`) ships with usage notes.
+3. **Stable row keys.** Row edits are keyed by action name (`rows#back`, `rows#filter:Sharp (Nearest)`), not position,
+   so they follow their row if rows are added or reordered. Saved sandbox edits also work for rows the page creates later
+   (`def.pending`).
+4. **Loading screen.** Edit mode freezes its timer (`loading_screen.holdWhile`, wired in the sandbox only) so the title can
+   be clicked. The `label` the game passes to `loading_screen.start` is still used until the title is edited.
+5. **Background / dim keys** (B, `[` `]`, `-` `=`) say "use the main menu" on text pages: they use the shared menu background.
+
+**Not editable (by design):** values that change at runtime (`UNBOUND`, `ACTIVE`, `PRESS A KEY...`, `PRESS A BUTTON...`,
+the FPS counter, the version watermark) and the loading bar.
+
+| File | Change |
+| --- | --- |
+| `ultimate_ui/ui/widgets.lua` | New `widgets.textPage`, `widgets.defaults`, `widgets.resolveText`; loads `ui/page_texts.lua`. |
+| `ultimate_ui/ui/page_texts.lua` | **New.** Placeholder + usage notes (`return {}`). |
+| `ultimate_ui/ui/settings_menu.lua`, `keyboard_menu.lua`, `controller_menu.lua`, `other_settings_menu.lua`, `texture_filter_menu.lua`, `loading_screen.lua` | Texts read through a text page; draw reports its boxes. Layout, clicks, input handling unchanged. |
+| `ultimate_ui/sandbox/editor.lua` | Row `key` support, lazy rows re-apply saved edits, `page_texts.lua` export, hints. |
+| `ultimate_ui/loading_screen.lua`, `ultimate_ui/sandbox/init.lua` | `holdWhile` hook; sandbox holds loading while editing. |
+| `ultimate_ui/sandbox/README.md`, `README.md` | Docs. |
+
+**Verification:** no LOVE here, so this was run in a stubbed-LOVE harness (real files, Lua runtime). Passed: all six pages draw
+exactly the same text as before; for every one of the 47 selectable items on those pages, clicking it selects it, typing
+replaces its text, and the next frame draws the new text; export writes a `page_texts.lua` with only the changed entries
+(text and color); a fresh start with that file installed shows the edits with no editor; a fresh sandbox start re-applies saved
+edits (including lazily created rows); a stale saved edit loses to an installed file; the main menu still edits as before.
+**Please run `love . --sandbox`, press F11 and click through Settings / Keyboard / Controller / Other / Textures
+and F7 (loading) to confirm, then Ctrl+Shift+E and install the export.**
+
+---
+
+## Patch: button-click + loading-screen sounds (drop-in `ui` / `loading` files)
+
+1. **Menu buttons play a click sound.** `menu_input.lua` plays the UI sound for every button activation: mouse click on
+   a button, Enter, gamepad A, and Esc / B / Start for "back". Clicking empty space, moving the cursor, right-clicking and
+   Esc on the main menu (nothing to go back to) are silent. It goes through `audio.playSFX`, so the SFX volume row applies.
+2. **The loading screen plays a sound and lasts exactly as long as it.** `main.lua` starts `loading.ogg` from the
+   loading screen's `onStart`, stops it in `onFinish`, and passes `sounds.loadingDuration(1.0)` as the screen's duration
+   (1.0 s if there is no loading sound). The sandbox's F7 preview uses the same rule (3 s fallback), and jumping screens
+   in the sandbox cuts a half-played loading sound.
+3. **Drag-and-drop replacement.** `ultimate_ui/sounds/` holds `example_ui.ogg` and `example_loading.ogg`. Dropping a file
+   named `ui.*` or `loading.*` there (`.ogg`, `.mp3` or `.wav`, any letter case) replaces the matching example, with no code or
+   config. Priority per slot: yours before the example, then `.ogg`, `.mp3`, `.wav`. Nothing found = silence, and the
+   template still runs with no sounds at all.
+4. **Startup check.** `checks.lua` warns if the sound in use will not decode, or if a `ui.*` / `loading.*` file has an
+   extension that is never picked up (e.g. `loading.flac`).
+
+**New / changed files**
+
+| File | Change |
+| --- | --- |
+| `ultimate_ui/ui_sounds.lua` | **New.** Finds the files, `playUI()`, `playLoading()`, `stopLoading()`, `loadingDuration(fallback)`, `path(slot)`, `refresh()`. Also reachable as `UI.sounds`. |
+| `ultimate_ui/sounds/README.md` | **New.** The drop-in instructions, next to the files. |
+| `ultimate_ui/audio.lua` | `playSFX` now returns the playing Source (was nothing). New `getSFXDuration(path)` and `clearSFXCache()`. Existing callers are unaffected. |
+| `ultimate_ui/menu_input.lua` | Plays the UI sound on button activation / back (see 1). |
+| `ultimate_ui/init.lua` | Registers `UI.sounds`; `UI.init()` scans the sounds folder. |
+| `ultimate_ui/checks.lua` | New "sounds" check. |
+| `ultimate_ui/sandbox/init.lua`, `sandbox/screens.lua` | F7 preview length follows the sound; screen jumps stop the loading sound. |
+| `main.lua` | `onStart` / `onFinish` / `onPlay` wiring for the loading sound and duration. |
+| `README.md` | New "Sounds" section, module table row, layout and startup-check lines. |
+
+**Behaviour to know about**
+
+* The loading screen's length is the **whole file's** length, including any silence at the end. `example_loading.ogg`
+  has about 0.7 s of near-silence at the end, so the bar holds a moment after the sound has faded. Trim the tail of your file if that matters.
+* The folder is scanned once at startup (`UI.init()`). Swap a file, then restart (F5 in the sandbox).
+* `loading_screen.lua` itself is unchanged and still knows nothing about sound; the wiring lives in `main.lua`, so a game that
+  copies `ultimate_ui/` and wires its own loading screen can pass `UI.sounds.loadingDuration()` the same way.
+* The bundled example sounds: confirm you may redistribute them before publishing, as with the background image.
+* In a fused / packaged build the folder is inside the archive, so swap files **before** building.
+
+**Verification:** there was no LOVE in my environment, so this was checked with a stubbed LOVE harness (real files on disk,
+sound lengths from `ffprobe`) rather than a real run. 25 checks passed: example files are picked by default; `ui.wav` and
+`Loading.MP3` override them; `.ogg` beats `.mp3`; an empty or missing `sounds/` folder is silent with the fallback duration
+and no crash; the loading screen's length equals the sound's length (2.584 s for the example); the sound stops on finish;
+the click plays on a button hit, Enter, gamepad A and Esc-in-a-sub-screen but not on empty clicks, cursor moves, right-click
+or Esc on the main menu; SFX volume is respected; the startup check flags `loading.flac` and an undecodable `ui.mp3`.
+**Please run `love . --sandbox` once and confirm you hear the click and the loading sound, and that F7 matches.**
 
 ---
 

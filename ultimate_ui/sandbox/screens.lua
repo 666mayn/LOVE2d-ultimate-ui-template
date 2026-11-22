@@ -14,6 +14,7 @@ local menu_input = require(ROOT .. ".menu_input")
 local keybinds = require(ROOT .. ".keybinds")
 local controller = require(ROOT .. ".controller")
 local loading_screen = require(ROOT .. ".loading_screen")
+local ui_sounds = require(ROOT .. ".ui_sounds")
 
 local screens = {}
 
@@ -85,6 +86,7 @@ function screens.jump(id, base)
     keybinds.cancelCapture()
     controller.cancelCapture()
     loading_screen.init()
+    ui_sounds.stopLoading() -- a loading screen cut short should not leave its sound playing
 
     if id == "game" then
         ui_state.enterPlayScreen()

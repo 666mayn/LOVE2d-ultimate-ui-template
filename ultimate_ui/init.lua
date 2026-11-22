@@ -9,7 +9,7 @@
 --     UI.init()                      -- in love.load: initialises every module, in the right order
 --     UI.configure{ title = "..." }  -- override ultimate_ui/config.lua values from your own code
 --     UI.ui.drawMainMenu(...)        -- the draw / click API (ui/init.lua)
---     UI.state, UI.keybinds, UI.controller, UI.input, UI.audio, UI.fonts, UI.config,
+--     UI.state, UI.keybinds, UI.controller, UI.input, UI.audio, UI.sounds, UI.fonts, UI.config,
 --     UI.menu_input, UI.other_settings, UI.textures, UI.crt, UI.loading, UI.intro, UI.log, UI.checks
 --
 -- Every module also works under its file name (UI.ui_state, UI.crt_manager, ...), and
@@ -38,6 +38,7 @@ local MODULES = {
     state          = "ui_state",
     config         = "config",
     audio          = "audio",
+    sounds         = "ui_sounds",                -- menu click + loading-screen sounds (sounds/ folder)
     fonts          = "fonts",
     keybinds       = "keybinds",
     controller     = "controller",
@@ -55,7 +56,7 @@ local MODULES = {
 -- the plain file names work too (UI.ui_state, UI.crt_manager, ...)
 for _, mod in pairs({
     "ui_state", "texture_filter_manager", "crt_manager", "loading_screen",
-    "intro_sequence", "debuglog",
+    "intro_sequence", "debuglog", "ui_sounds",
 }) do
     MODULES[mod] = mod
 end
@@ -97,6 +98,7 @@ function UI.init()
     UI.other_settings.init()
     UI.state.init()
     UI.loading.init()
+    UI.sounds.refresh()  -- finds ui.* / loading.* (or the examples) in sounds/
     UI.checks.run()      -- warns (console + sandbox log) about missing image / fonts / filters ...
     return UI
 end

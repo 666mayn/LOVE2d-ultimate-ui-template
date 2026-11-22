@@ -29,8 +29,13 @@ for k, v in pairs(DEFAULTS) do state[k] = v end
 local onStart = nil
 local isStillWaiting = nil
 local onFinish = nil
+local holdWhile = nil   -- optional dev hook: while it returns true the screen just stays up
 
 function loading_screen.getState() return state end
+
+-- Dev hook (the sandbox editor uses it): while fn() returns true the loading screen stays up
+-- with its timer frozen, so its title can be edited. Pass nil to remove. A game never needs it.
+function loading_screen.holdWhile(fn) holdWhile = fn end
 
 function loading_screen.init()
     for k, v in pairs(DEFAULTS) do state[k] = v end
@@ -58,6 +63,7 @@ end
 -- block/override normal per-frame update logic upstream).
 function loading_screen.update(dt)
     if not state.isLoading then return false end
+    if holdWhile and holdWhile() then return true end
 
     state.loadTimer = state.loadTimer - dt
     if state.loadTimer <= 0 then

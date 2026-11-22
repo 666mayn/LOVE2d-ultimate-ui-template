@@ -16,6 +16,10 @@
 --
 -- Hook your game in with menu_input.configure{ onPlay=, onResume=,
 -- onExitToMenu=, onExit= } -- see main.lua.
+--
+-- Click sound: every button activation (mouse click on a button, Enter, gamepad A, and
+-- Esc / B for "back") plays the UI sound from ui_sounds.lua. Clicking empty space is
+-- silent. Replace the sound by dropping ui.ogg into ultimate_ui/sounds/.
 
 local ROOT = (...):match("^(.*)%.[^.]+$")
 local ui = require(ROOT .. ".ui")
@@ -23,6 +27,7 @@ local ui_state = require(ROOT .. ".ui_state")
 local keybinds = require(ROOT .. ".keybinds")
 local controller = require(ROOT .. ".controller")
 local other_settings = require(ROOT .. ".other_settings")
+local sounds = require(ROOT .. ".ui_sounds")
 
 local menu_input = {}
 
@@ -266,8 +271,10 @@ function menu_input.keypressed(key)
     elseif key == "down" then
         moveCursor(scr, 1)
     elseif key == "return" or key == "kpenter" then
+        sounds.playUI()
         scr.activate(state[scr.sel])
     elseif key == "escape" then
+        if scr.name ~= "main" then sounds.playUI() end -- main menu has nothing to go back to
         scr.back()
     end
     return true
@@ -282,7 +289,9 @@ function menu_input.mousepressed(x, y, button, screenWidth, screenHeight, uiScal
 
     local scr = currentScreen()
     if not scr then return false end
-    scr.act(scr.click(x, y, screenWidth, screenHeight, uiScale))
+    local result = scr.click(x, y, screenWidth, screenHeight, uiScale)
+    if result ~= nil then sounds.playUI() end -- nil = clicked empty space
+    scr.act(result)
     return true
 end
 
@@ -304,10 +313,13 @@ function menu_input.gamepadpressed(button)
     elseif button == "dpdown" then
         moveCursor(scr, 1)
     elseif button == "a" then
+        sounds.playUI()
         scr.activate(state[scr.sel])
     elseif button == "b" then
+        if scr.name ~= "main" then sounds.playUI() end
         scr.back()
     elseif button == "start" and scr.name == "pause" then
+        sounds.playUI()
         scr.back()
     end
     return true

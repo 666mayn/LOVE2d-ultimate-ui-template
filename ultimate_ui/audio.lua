@@ -6,8 +6,12 @@
 --
 -- USAGE
 --   audio.playSFX("sounds/jump.ogg")       -- one-shot, cached after first load
+--                                          -- (returns the playing Source, or nil)
+--   audio.getSFXDuration("sounds/jump.ogg") -- length in seconds, or nil if it won't load
 --   audio.playMusic("music/theme.ogg")     -- loops; replaces current track
 --   audio.stopMusic()
+--
+-- The menu click / loading-screen sounds are wired up in ui_sounds.lua.
 
 local ROOT = (...):match("^(.*)%.[^.]+$")
 local debuglog = require(ROOT .. ".debuglog")
@@ -34,7 +38,9 @@ function audio.setMusicVolume(v)
     if music then music:setVolume(audio.globalMusicVolume) end
 end
 
-function audio.playSFX(path, volumeScale)
+-- Loads (once) and returns the cached static Source for `path`, or nil if the
+-- file is missing / can't be decoded (a warning is logged the first time).
+local function loadSFX(path)
     local src = sfxCache[path]
     if src == nil then
         local ok, loaded = pcall(love.audio.newSource, path, "static")
@@ -46,10 +52,29 @@ function audio.playSFX(path, volumeScale)
         end
         sfxCache[path] = src
     end
-    if not src then return end
+    return src or nil
+end
+
+-- Forgets every cached SFX so changed files are re-read on next use.
+function audio.clearSFXCache()
+    sfxCache = {}
+end
+
+-- Length of a sound in seconds, or nil if it can't be loaded.
+function audio.getSFXDuration(path)
+    local src = loadSFX(path)
+    return src and src:getDuration() or nil
+end
+
+-- Plays `path` once at the SFX volume (times the optional volumeScale).
+-- Returns the playing Source (so you can :stop() it), or nil if it didn't load.
+function audio.playSFX(path, volumeScale)
+    local src = loadSFX(path)
+    if not src then return nil end
     local instance = src:clone() -- clone so overlapping plays don't cut each other off
     instance:setVolume(audio.globalSFXVolume * (volumeScale or 1))
     instance:play()
+    return instance
 end
 
 function audio.playMusic(path)

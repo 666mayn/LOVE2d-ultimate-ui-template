@@ -20,7 +20,7 @@ local config = {
     -- controller, other, texture, loading), so it never drops out as you move between them.
     -- Path from the game root; scaled to cover the screen. blur 0 (sharp) .. 10, dim 0..1
     -- is the black overlay over the picture. nil = none (pages keep their plain dark overlay).
-    -- A widget screen that sets its own `background` still overrides this for that page.
+    -- If nil, ui/menu_background.lua is used (the sandbox editor exports it). A widget screen that sets its own `background` still overrides this for that page.
     menuBackground = nil,      -- e.g. { image = "ultimate_ui/background/my_image.png", blur = 8, dim = 0.3 }
 
     -- Startup self-check (checks.lua): at UI.init() it warns about a missing menu background

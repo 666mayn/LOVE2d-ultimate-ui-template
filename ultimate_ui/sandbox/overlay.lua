@@ -5,6 +5,7 @@
 --
 --   info.strip   string   always-visible line, bottom-left
 --   info.hints   table?   extra hint lines stacked directly above the strip (editor mode)
+--   info.saveToast { text, kind="ok"|"warn"|"error", alpha, slide }?  top-center banner for exports
 --   info.toast   string?  most recent message (fades out), above the strip
 --   info.rows    table?   F1 panel rows: { heading = "..." } or { key =, value = }
 --   info.log     table?   event-log lines, oldest first
@@ -91,6 +92,24 @@ function overlay.draw(info)
         y = y - (lh + pad) - 2
         box(pad, y, toastW, lh + pad)
         text(info.toast.text, pad * 2, y + pad / 2, COLORS.toast, info.toast.alpha)
+    end
+
+    -- Save toast (top-center): green = saved, amber = saved elsewhere, red = failed
+    if info.saveToast then
+        local t = info.saveToast
+        local tw = font:getWidth(t.text) + pad * 4
+        local th = lh + pad * 2
+        local x = math.floor((w - tw) / 2)
+        local ty = math.floor(pad + (t.slide - 1) * (th + pad))
+        local accent = ({ ok = { 0.30, 0.90, 0.45 }, warn = { 1.00, 0.76, 0.12 }, error = { 1.00, 0.38, 0.38 } })[t.kind]
+            or { 0.30, 0.90, 0.45 }
+        love.graphics.setColor(0, 0, 0, 0.88 * t.alpha)
+        love.graphics.rectangle("fill", x, ty, tw, th)
+        love.graphics.setColor(accent[1], accent[2], accent[3], t.alpha)
+        love.graphics.rectangle("fill", x, ty, 5, th)
+        love.graphics.setLineWidth(1)
+        love.graphics.rectangle("line", x + 0.5, ty + 0.5, tw - 1, th - 1)
+        text(t.text, x + pad * 2, ty + pad, accent, t.alpha)
     end
 
     -- Event log (newest at the bottom, stacked upward)

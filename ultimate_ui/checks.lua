@@ -12,6 +12,8 @@
 --   * CRT filters        none (or some) of crt_filters/ present, or a filter file
 --                        that crt_manager.lua doesn't list
 --   * intro videos       a file in config.introVideos is missing / not .ogv
+--   * sounds             a ui.* / loading.* file in sounds/ that will not decode, or has an
+--                        extension LOVE can't use (only .ogg / .mp3 / .wav are picked up)
 --   * save folder        can't write there (settings would not persist)
 --   * LOVE version       the template targets LOVE 11.x
 --   * sandbox            still in the folder of a fused (shipped) build
@@ -167,6 +169,27 @@ local function checkIntroVideos(config)
     end
 end
 
+local function checkSounds()
+    local sounds = require(ROOT .. ".ui_sounds")
+    local audio = require(ROOT .. ".audio")
+    local dir = DIR .. "/sounds"
+
+    -- the file that is actually in use must decode (audio.lua warns with the path if not)
+    for _, slot in ipairs({ "ui", "loading" }) do
+        local path = sounds.path(slot)
+        if path then audio.getSFXDuration(path) end
+    end
+
+    -- a file named like a slot but with an extension that is never looked for
+    for _, name in ipairs(listFiles(dir, { "^ui%.[^.]+$", "^loading%.[^.]+$" })) do
+        local ext = name:lower():match("%.([^.]+)$")
+        if ext ~= "ogg" and ext ~= "mp3" and ext ~= "wav" then
+            warn("%s/%s is ignored: only .ogg, .mp3 and .wav are used. Convert it, e.g. to %s.ogg.",
+                dir, name, (name:gsub("%.[^.]+$", "")))
+        end
+    end
+end
+
 local function checkSaveFolder()
     local name = "ultimate_ui_write_test.tmp"
     local ok, err = fs.write(name, "ok")
@@ -199,6 +222,7 @@ local ALL = {
     { "fonts",           checkFonts },
     { "screen filters",  checkFilters },
     { "intro videos",    checkIntroVideos },
+    { "sounds",          checkSounds },
     { "save folder",     checkSaveFolder },
     { "LOVE version",    checkLoveVersion },
     { "sandbox",         checkSandboxShipped },

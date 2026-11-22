@@ -50,6 +50,7 @@ function sandbox.attach()
     local crt_manager = require(ROOT .. ".crt_manager")
     local intro_sequence = require(ROOT .. ".intro_sequence")
     local loading_screen = require(ROOT .. ".loading_screen")
+    local ui_sounds = require(ROOT .. ".ui_sounds")
     local debuglog = require(ROOT .. ".debuglog")
     local screens = require(ROOT .. ".sandbox.screens")
     local overlay = require(ROOT .. ".sandbox.overlay")
@@ -72,6 +73,7 @@ function sandbox.attach()
     local virtualDown = {}           -- gamepad buttons "held" by the fake pad
     local lines = {}                 -- event-log ring buffer
     local toast, toastAt = nil, 0
+    local saveToast, saveToastAt = nil, 0   -- the big save toast: { text, kind }
     local presets = {}               -- config.presets that fit this desktop
     local orig = {}                  -- the game's own callbacks
 
@@ -115,6 +117,10 @@ function sandbox.attach()
     -- Widget editor (F11): hand it our logger, and let it see every widget
     -- screen as it is drawn so saved edits get applied.
     editor.setLogger(log)
+    editor.setOnExported(function() if autoReload then watcher.start(config.watchIgnore) end end)
+    editor.setNotifier(function(text, kind) saveToast, saveToastAt = { text = text, kind = kind }, clock end)
+    -- Edit mode holds the loading screen open (timer frozen) so its title can be clicked and edited.
+    loading_screen.holdWhile(function() return editor.active() end)
     local origWidgetsDraw = widgets.draw
     widgets.draw = function(def, ...)
         editor.seen(def)
@@ -193,6 +199,10 @@ function sandbox.attach()
         if restarting then return end   -- quit is async; don't ask twice
         restarting = true
         log("restarting (%s)", reason)
+        pcall(function()
+            local old = love.filesystem.getInfo("ultimate_ui_export_log.txt") and love.filesystem.read("ultimate_ui_export_log.txt") or ""
+            love.filesystem.write("ultimate_ui_export_log.txt", old .. os.date("%H:%M:%S ") .. "RESTART: " .. tostring(reason) .. "\n")
+        end)
         saveSession()
         love.event.quit("restart")
     end
@@ -257,7 +267,12 @@ function sandbox.attach()
             if autoReload then watcher.start(config.watchIgnore) end
             log("auto-reload %s", autoReload and "ON" or "off")
         end,
-        loading = function() loading_screen.start("sandbox-preview", 3, "LOADING...") log("loading screen preview (3s)") end,
+        loading = function()
+            -- Same length rule as the real PLAY button: as long as the loading sound (3s if none).
+            local seconds = ui_sounds.loadingDuration(3)
+            loading_screen.start("sandbox-preview", seconds, "LOADING...")
+            log("loading screen preview (%.1fs)", seconds)
+        end,
         wipe = wipeSaves,
         saveDir = function()
             local dir = love.filesystem.getSaveDirectory()
@@ -311,6 +326,12 @@ function sandbox.attach()
 
         if toast and clock - toastAt < 4 then
             info.toast = { text = toast, alpha = math.min(1, (4 - (clock - toastAt))) }
+        end
+        local SAVE_TOAST_SECONDS = 3.5
+        if saveToast and clock - saveToastAt < SAVE_TOAST_SECONDS then
+            local age = clock - saveToastAt
+            info.saveToast = { text = saveToast.text, kind = saveToast.kind,
+                alpha = math.min(1, (SAVE_TOAST_SECONDS - age) * 2), slide = math.min(1, age * 8) }
         end
         if showLog then info.log = lines end
 
@@ -380,9 +401,10 @@ function sandbox.attach()
     love.update = function(dt)
         clock = clock + dt
         if autoReload then
-            local changed = watcher.update(dt, config.watchInterval)
+            local changed = (not editor.exporting()) and watcher.update(dt, config.watchInterval) or nil
             if changed then return restart(changed .. " changed") end
         end
+        editor.update()
         if orig.update then orig.update(dt) end
     end
 
@@ -418,6 +440,7 @@ function sandbox.attach()
                 end)
             end
         end
+        pcall(editor.drawCut)
     end
 
     orig.keypressed = love.keypressed

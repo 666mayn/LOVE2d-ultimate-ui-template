@@ -7,7 +7,7 @@ this folder behind the current page (then off). **\[** / **]** change the blur (
 **-** / **=** change the dark dim.
 * **Default test background:** `love . --sandbox` starts pages with the first image found here (blur 8,
 dim 30%) so you can judge text over art. Tune or turn it off in `ultimate_ui/sandbox/config.lua`
-(`defaultBackground`). Plain `love .` never shows it.
+(`defaultBackground`). Plain `love .` shows the picture named in `ultimate_ui/ui/menu_background.lua` (shipped pointing at the bundled image; `return nil` there turns it off). Exports (Ctrl+E / Ctrl+Shift+E) now write that file too, so what you see in the sandbox is what plain `love .` shows once installed.
 * **Exporting:** a background is written into an export only if you picked it yourself in the editor
 (`background = { image = "ultimate_ui/background/<file>", blur = N }` in `exports/ultimate_ui/ui/<page>.lua`). Ship this
 folder with your game, or at least the images you chose.

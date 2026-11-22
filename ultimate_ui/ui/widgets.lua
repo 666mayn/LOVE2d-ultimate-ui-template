@@ -51,6 +51,11 @@
 -- (draw<Api>, handle<Api>Click, getRowCount, getActionAt) and registers it in
 -- widgets.screens, which is the list of pages the editor can edit and export.
 --
+-- widgets.textPage{...} is the lighter sibling of screenModule for the HAND-CODED pages
+-- (Settings, Keyboard, Controller, Other, Textures, Loading): their layout and logic stay in
+-- Lua, but every title / button / row label / hint line is described as data so the sandbox
+-- editor (F11) can edit it too. See the "Text pages" section below.
+--
 -- Colors are "rainbow" (the animated default) or { r, g, b } with each 0..1.
 
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
@@ -99,6 +104,8 @@ local function resolveText(t)
     end
     return t
 end
+
+widgets.resolveText = resolveText
 
 local function shown(w)
     if w.visible and not w.visible() then return false end
@@ -319,6 +326,121 @@ function widgets.screenModule(screen)
     m.getRowCount = function() return widgets.getRowCount(screen) end
     m.getActionAt = function(index) return widgets.getActionAt(screen, index) end
     return m
+end
+
+-- ---------------------------------------------------------------------------
+-- Text pages
+-- ---------------------------------------------------------------------------
+-- A text page is a hand-coded screen (its own layout, its own clicks) whose STRINGS are
+-- still data. The page keeps drawing itself, but reads every piece of text through the page
+-- object, and reports the boxes it drew, so the sandbox editor (F11) can select and edit
+-- them exactly like a widget screen:
+--
+--   local page = widgets.textPage{
+--       id = "settingsMenu", file = "ui/settings_menu.lua",
+--       labels = {                                   -- fixed texts, by id
+--           { id = "title", text = "S E T T I N G S", fontSize = 60, color = "rainbow" },
+--           { id = "hint",  text = "Esc to go back",  fontSize = 18, color = { 0.6, 0.6, 0.6 } },
+--       },
+--   }
+--   local item = page.item("keyboard", "K E Y B O A R D")   -- a button / row label, by stable key
+--   item.text                                               -- what to draw (edits already applied)
+--   local r, g, b = page.rgb(item, r, g, b)                  -- 0-255; the item's own color if it has one
+--   page.report(items, w, h, uiScale)                        -- call at the end of draw (see below)
+--
+-- Row keys must be stable (an action name, a row id, ...), not a position, so a saved edit
+-- keeps following its row when rows are added or reordered.
+--
+-- Edits survive a restart in two layers: the sandbox remembers them in the save folder, and
+-- Ctrl+E (or Ctrl+Shift+E) writes them ALL to exports/<lib>/ui/page_texts.lua. Drop that file
+-- over ui/page_texts.lua and every text page picks the texts up at startup, with no editor.
+
+-- ui/page_texts.lua, loaded once: { [screenId] = { [key] = { text =, color = } } }.
+-- It is optional; a missing file (or one with an error, which is printed) means "no overrides".
+local pageTexts
+local function loadPageTexts()
+    if pageTexts == nil then
+        pageTexts = {}
+        local ok, found = pcall(require, ROOT .. ".ui.page_texts")
+        if ok and type(found) == "table" then
+            pageTexts = found
+        elseif not ok and not tostring(found):find("not found", 1, true) then
+            print("[ultimate_ui] ui/page_texts.lua could not be loaded: " .. tostring(found))
+        end
+    end
+    return pageTexts
+end
+
+function widgets.pageTexts() return loadPageTexts() end
+
+-- target -> { text =, color = } as the CODE wrote it (before page_texts.lua). The editor
+-- compares against this to export only what really differs from the template.
+widgets.defaults = setmetatable({}, { __mode = "k" })
+
+local function giveOverrides(def, key, target)
+    widgets.defaults[target] = { text = target.text, color = target.color }
+    local mine = loadPageTexts()[def.id]
+    local o = mine and mine[key]
+    if type(o) == "table" then
+        if type(o.text) == "string" then target.text = o.text end
+        if o.color ~= nil then target.color = o.color end
+    end
+end
+
+function widgets.textPage(spec)
+    local def = { id = spec.id, file = spec.file, api = spec.api, textOnly = true, widgets = {} }
+    local page = { def = def }
+    local byId = {}
+
+    for _, l in ipairs(spec.labels or {}) do
+        local w = { id = l.id, type = "label", text = l.text, fontSize = l.fontSize or 30,
+                    color = l.color or "rainbow" }
+        giveOverrides(def, w.id, w)
+        def.widgets[#def.widgets + 1] = w
+        byId[w.id] = w
+    end
+
+    -- One stack ("rows") holds every button / row label; items are created on first use.
+    local stack = { id = "rows", type = "stack", size = { 0, 0 }, items = {} }
+    def.widgets[#def.widgets + 1] = stack
+    local byKey = {}
+
+    function page.label(id) return byId[id] end
+
+    function page.item(key, default)
+        local it = byKey[key]
+        if not it then
+            it = { text = default, key = key }
+            giveOverrides(def, "rows#" .. key, it)
+            byKey[key] = it
+            stack.items[#stack.items + 1] = it
+            def.pending = true        -- the editor applies its saved edits to the new item
+        end
+        return it
+    end
+
+    -- Color of an item / label in 0-255. "rainbow" (or no color) gives the caller's r, g, b.
+    function page.rgb(entry, r, g, b)
+        local c = entry and entry.color
+        if type(c) == "table" then return c[1] * 255, c[2] * 255, c[3] * 255 end
+        return r, g, b
+    end
+
+    -- Tell the editor what was drawn. `items` is a list of
+    --   { kind = "label", id = "title", text, fontSize, x, y, w, h, color }          (a label)
+    --   { kind = "button", id = "rows", key = <row key>, text, x, y, w, h, color }   (a button / row)
+    -- in screen pixels (the hit box the editor outlines). Cheap: one table per frame.
+    function page.report(items, screenWidth, screenHeight, uiScale)
+        widgets.last = { def = def, items = items, uiScale = uiScale,
+                         width = screenWidth, height = screenHeight, time = love.timer.getTime() }
+    end
+
+    local replaced = false
+    for i, s in ipairs(widgets.screens) do
+        if s.id == def.id then widgets.screens[i] = def replaced = true end
+    end
+    if not replaced then widgets.screens[#widgets.screens + 1] = def end
+    return page
 end
 
 return widgets

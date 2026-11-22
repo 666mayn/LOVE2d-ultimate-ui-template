@@ -23,6 +23,7 @@ background.MAX_BLUR = MAX_BLUR
 local images = {}        -- path -> image | false (failed)
 local cache = nil        -- { key =, canvas = }
 local shader, shaderTried = nil, false
+local fileSpec = nil      -- ui/menu_background.lua: table | false (none)
 
 local SHADER = [[
 extern vec2 dir;   // one-texel step along the blur axis
@@ -155,7 +156,14 @@ function background.shared()
     local ok, config = pcall(require, ROOT .. ".config")
     local spec = ok and config.menuBackground or nil
     if spec and spec.image then return spec end
-    return nil
+    -- Fallback: ui/menu_background.lua (written by the sandbox editor's export, or by hand).
+    -- This is what makes the picture show in plain `love .`. `return nil` there = none.
+    if fileSpec == nil then
+        fileSpec = false
+        local okf, found = pcall(require, ROOT .. ".ui.menu_background")
+        if okf and type(found) == "table" and found.image then fileSpec = found end
+    end
+    return fileSpec or nil
 end
 
 -- Sets (or, with nil, clears) the shared menu background at runtime.
@@ -163,6 +171,7 @@ function background.setShared(spec)
     local config = require(ROOT .. ".config")
     config.menuBackground = spec and spec.image and
         { image = spec.image, blur = spec.blur, dim = spec.dim } or nil
+    if not config.menuBackground then fileSpec = false end   -- "off" in the editor beats the file
 end
 
 -- Image files available in this library's background/ folder (sorted), for the editor

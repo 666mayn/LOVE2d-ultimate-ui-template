@@ -1,0 +1,20 @@
+-- ui/page_texts.lua
+-- Text overrides for the hand-coded pages: Settings, Keyboard, Controller, Other, Textures
+-- and Loading. The sandbox editor (love . --sandbox, F11) writes this file for you: edit the
+-- texts / colors, press Ctrl+E (or Ctrl+Shift+E), then drag exports/ultimate_ui/ui/page_texts.lua
+-- over this file and restart. You can also edit it by hand.
+--
+-- Layout:  [page id][key] = { text = "...", color = { r, g, b } | "rainbow" }
+--   page id : settingsMenu | keyboardMenu | controllerMenu | otherSettingsMenu
+--             | textureFilterMenu | loadingScreen
+--   key     : "title" | "hint" | "rows#<row key>"   (a row key is an action name, e.g. "rows#back")
+--
+-- Only list what you want to change; everything else keeps the text in the page's code.
+-- Example:
+--   return {
+--       settingsMenu = {
+--           title        = { text = "O P T I O N S" },
+--           ["rows#back"] = { text = "R E T U R N", color = { 1, 0.76, 0.12 } },
+--       },
+--   }
+return {}

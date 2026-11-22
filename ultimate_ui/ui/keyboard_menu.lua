@@ -12,7 +12,18 @@
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local ui_state = require(ROOT .. ".ui_state")
 local helpers = require(ROOT .. ".ui.helpers")
+local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
+
+-- The page's texts as data, so the sandbox editor (F11) can edit them. Row labels are
+-- keyed by the row id (an action name), so a saved edit follows its row.
+local page = widgets.textPage{
+    id = "keyboardMenu", file = "ui/keyboard_menu.lua",
+    labels = {
+        { id = "title", text = "K E Y B O A R D", fontSize = 52, color = "rainbow" },
+        { id = "hint",  text = "Click a bind then press a key to rebind it -- [Esc] or [B] to go back", fontSize = 18, color = { 0.6, 0.6, 0.6 } },
+    },
+}
 local keybinds = require(ROOT .. ".keybinds")
 
 local keyboard_menu = {}
@@ -79,12 +90,20 @@ function keyboard_menu.drawKeyboardMenu(screenWidth, screenHeight, selection, mo
     -- rather than a fixed offset, so the title stays clear of the rows
     -- as more keybind actions get added.
     local titleY = startY - 90 * uiScale
+    local title = page.label("title")
+    local titleText = widgets.resolveText(title.text)
+    local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
     helpers.withPop(centerX, titleY + (52 * uiScale) / 2, titleScale, titleAlpha, function()
-        love.graphics.setColor(r/255, g/255, b/255, titleAlpha)
+        love.graphics.setColor(tr/255, tg/255, tb/255, titleAlpha)
         love.graphics.setFont(getFont(52 * uiScale))
-        love.graphics.printf("K E Y B O A R D", 0, titleY, screenWidth, "center")
+        love.graphics.printf(titleText, 0, titleY, screenWidth, "center")
     end)
+    -- What was drawn, for the sandbox editor (see widgets.textPage).
+    local reported = {
+        { kind = "label", id = "title", text = titleText, fontSize = 52, color = title.color,
+          x = 0, y = titleY, w = screenWidth, h = 52 * uiScale },
+    }
     local capturingAction = keybinds.getCapturingAction()
 
     local baseDelay = 0.15
@@ -95,6 +114,11 @@ function keyboard_menu.drawKeyboardMenu(screenWidth, screenHeight, selection, mo
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
         local scale, alpha = helpers.popIn(t, baseDelay + (i - 1) * stagger, 0.35)
+        local entry = page.item(row.id, row.label)
+        local rowText = widgets.resolveText(entry.text)
+        local rr, rg, rb = page.rgb(entry, r, g, b)
+        reported[#reported + 1] = { kind = "button", id = "rows", key = row.id, index = i, text = rowText,
+            color = entry.color, x = centerX - rowWidth / 2, y = y, w = rowWidth, h = rowHeight }
 
         helpers.withPop(centerX, y + rowHeight / 2, scale, alpha, function()
             local isSelected = (selection == i)
@@ -102,26 +126,31 @@ function keyboard_menu.drawKeyboardMenu(screenWidth, screenHeight, selection, mo
             if row.type == "keybind" then
                 local isCapturingThis = (capturingAction == row.id)
                 local valueText = isCapturingThis and "PRESS A KEY..." or keybinds.getDisplayName(row.id)
-                drawRow(row.label, valueText, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, uiScale, r, g, b, alpha, isCapturingThis)
+                drawRow(rowText, valueText, centerX, y, rowWidth, rowHeight,
+                    isSelected, hovered, uiScale, rr, rg, rb, alpha, isCapturingThis)
 
             elseif row.type == "action" then
-                helpers.drawScaledButton(row.label, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, false, uiScale, r, g, b, alpha)
+                helpers.drawScaledButton(rowText, centerX, y, rowWidth, rowHeight,
+                    isSelected, hovered, false, uiScale, rr, rg, rb, alpha)
             end
         end)
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
     local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1)
+    local hint = page.label("hint")
+    local hintText = widgets.resolveText(hint.text)
+    local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
-        love.graphics.setColor(0.6, 0.6, 0.6, hintAlpha)
+        love.graphics.setColor(hr/255, hg/255, hb/255, hintAlpha)
         love.graphics.setFont(getFont(18 * uiScale))
-        love.graphics.printf("Click a bind then press a key to rebind it -- [Esc] or [B] to go back",
-            0, hintY, screenWidth, "center")
+        love.graphics.printf(hintText, 0, hintY, screenWidth, "center")
     end)
+    reported[#reported + 1] = { kind = "label", id = "hint", text = hintText, fontSize = 18, color = hint.color,
+        x = 0, y = hintY, w = screenWidth, h = 18 * uiScale }
 
     love.graphics.setColor(1, 1, 1, 1)
+    page.report(reported, screenWidth, screenHeight, uiScale)
 end
 
 -- Returns:

@@ -15,26 +15,38 @@
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local ui_state = require(ROOT .. ".ui_state")
 local helpers = require(ROOT .. ".ui.helpers")
+local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
 local texture_filter_manager = require(ROOT .. ".texture_filter_manager")
 local crt_manager = require(ROOT .. ".crt_manager")
 
 local texture_filter_menu = {}
 
+-- The page's texts as data, so the sandbox editor (F11) can edit them. Every row gets a
+-- stable `key` (a filter's name, a CRT setting's id, ...) so a saved edit follows its row.
+local page = widgets.textPage{
+    id = "textureFilterMenu", file = "ui/texture_filter_menu.lua",
+    labels = {
+        { id = "title", text = "T E X T U R E S", fontSize = 52, color = "rainbow" },
+        { id = "hint",  text = "Click a row to change it -- [Esc] or [B] to go back", fontSize = 18,
+          color = { 0.6, 0.6, 0.6 } },
+    },
+}
+
 local function buildRows()
     local rows = {}
     for i, def in ipairs(texture_filter_manager.getOptions()) do
-        table.insert(rows, { type = "filter", index = i, label = string.upper(def.name) })
+        table.insert(rows, { type = "filter", index = i, key = "filter:" .. def.name, label = string.upper(def.name) })
     end
-    table.insert(rows, { type = "crt_filter", label = "CRT FILTER", gapBefore = true })
+    table.insert(rows, { type = "crt_filter", key = "crt_filter", label = "CRT FILTER", gapBefore = true })
     local settingRows = crt_manager.getSettingRows(crt_manager.getActiveIndex())
     for _, s in ipairs(settingRows) do
-        table.insert(rows, { type = "crt_setting", id = s.id, label = s.label })
+        table.insert(rows, { type = "crt_setting", id = s.id, key = "crt:" .. s.id, label = s.label })
     end
     if #settingRows > 0 then
-        table.insert(rows, { type = "action", id = "crt_reset", label = "RESET CRT SETTINGS" })
+        table.insert(rows, { type = "action", id = "crt_reset", key = "crt_reset", label = "RESET CRT SETTINGS" })
     end
-    table.insert(rows, { type = "action", id = "back", label = "BACK", gapBefore = true })
+    table.insert(rows, { type = "action", id = "back", key = "back", label = "BACK", gapBefore = true })
     return rows
 end
 
@@ -102,12 +114,20 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
     local rows, rowHeight, rowWidth, ys, fit, bottomY = layout(screenHeight, uiScale)
 
     local titleY = ys[1] - 90 * uiScale
+    local title = page.label("title")
+    local titleText = widgets.resolveText(title.text)
+    local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
     helpers.withPop(centerX, titleY + (52 * uiScale) / 2, titleScale, titleAlpha, function()
-        love.graphics.setColor(r/255, g/255, b/255, titleAlpha)
+        love.graphics.setColor(tr/255, tg/255, tb/255, titleAlpha)
         love.graphics.setFont(getFont(52 * uiScale))
-        love.graphics.printf("T E X T U R E S", 0, titleY, screenWidth, "center")
+        love.graphics.printf(titleText, 0, titleY, screenWidth, "center")
     end)
+    -- What was drawn, for the sandbox editor (see widgets.textPage).
+    local reported = {
+        { kind = "label", id = "title", text = titleText, fontSize = 52, color = title.color,
+          x = 0, y = titleY, w = screenWidth, h = 52 * uiScale },
+    }
 
     local activeIndex = texture_filter_manager.getActiveIndex()
     local crtIndex = crt_manager.getActiveIndex()
@@ -121,6 +141,11 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
         local scale, alpha = helpers.popIn(t, baseDelay + (i - 1) * stagger, 0.35)
+        local entry = page.item(row.key, row.label)
+        local rowText = widgets.resolveText(entry.text)
+        local rr, rg, rb = page.rgb(entry, r, g, b)
+        reported[#reported + 1] = { kind = "button", id = "rows", key = row.key, index = i, text = rowText,
+            color = entry.color, x = centerX - rowWidth / 2, y = y, w = rowWidth, h = rowHeight }
 
         helpers.withPop(centerX, y + rowHeight / 2, scale, alpha, function()
             local isSelected = (selection == i)
@@ -129,32 +154,37 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
                 if row.index == activeIndex then
                     valueText, color = "ACTIVE", { 0.4, 1, 0.5 }
                 end
-                drawRow(row.label, valueText, color, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, uiScale, r, g, b, alpha)
+                drawRow(rowText, valueText, color, centerX, y, rowWidth, rowHeight,
+                    isSelected, hovered, uiScale, rr, rg, rb, alpha)
             elseif row.type == "crt_filter" then
                 local color = crtOff and { 0.85, 0.85, 0.85 } or { 0.4, 1, 0.5 }
-                drawRow(row.label, string.upper(crtDef.name), color, centerX, y,
-                    rowWidth, rowHeight, isSelected, hovered, uiScale, r, g, b, alpha)
+                drawRow(rowText, string.upper(crtDef.name), color, centerX, y,
+                    rowWidth, rowHeight, isSelected, hovered, uiScale, rr, rg, rb, alpha)
             elseif row.type == "crt_setting" then
-                drawRow(row.label, crt_manager.getSettingLabel(crtIndex, row.id), { 0.85, 0.85, 0.85 },
-                    centerX, y, rowWidth, rowHeight, isSelected, hovered, uiScale, r, g, b, alpha)
+                drawRow(rowText, crt_manager.getSettingLabel(crtIndex, row.id), { 0.85, 0.85, 0.85 },
+                    centerX, y, rowWidth, rowHeight, isSelected, hovered, uiScale, rr, rg, rb, alpha)
             else
-                helpers.drawScaledButton(row.label, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, false, uiScale * fit, r, g, b, alpha)
+                helpers.drawScaledButton(rowText, centerX, y, rowWidth, rowHeight,
+                    isSelected, hovered, false, uiScale * fit, rr, rg, rb, alpha)
             end
         end)
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
     local hintY = bottomY + 24 * uiScale
+    local hint = page.label("hint")
+    local hintText = widgets.resolveText(hint.text)
+    local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
-        love.graphics.setColor(0.6, 0.6, 0.6, hintAlpha)
+        love.graphics.setColor(hr/255, hg/255, hb/255, hintAlpha)
         love.graphics.setFont(getFont(18 * uiScale))
-        love.graphics.printf("Click a row to change it -- [Esc] or [B] to go back",
-            0, hintY, screenWidth, "center")
+        love.graphics.printf(hintText, 0, hintY, screenWidth, "center")
     end)
+    reported[#reported + 1] = { kind = "label", id = "hint", text = hintText, fontSize = 18, color = hint.color,
+        x = 0, y = hintY, w = screenWidth, h = 18 * uiScale }
 
     love.graphics.setColor(1, 1, 1, 1)
+    page.report(reported, screenWidth, screenHeight, uiScale)
 end
 
 -- Returns:

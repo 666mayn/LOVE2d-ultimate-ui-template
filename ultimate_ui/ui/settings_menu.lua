@@ -11,7 +11,15 @@
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local ui_state = require(ROOT .. ".ui_state")
 local helpers = require(ROOT .. ".ui.helpers")
+local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
+
+-- The page's texts as data, so the sandbox editor (F11) can edit them. Each category is
+-- looked up by its `action` (a stable key), so a saved edit follows its button.
+local page = widgets.textPage{
+    id = "settingsMenu", file = "ui/settings_menu.lua",
+    labels = { { id = "title", text = "S E T T I N G S", fontSize = 60, color = "rainbow" } },
+}
 
 local settings_menu = {}
 
@@ -24,6 +32,8 @@ local CATEGORIES = {
     { label = "T E X T U R E S", action = "texture_filter" },
     { label = "B A C K",                   action = "back" },
 }
+-- The editable entry behind a category (its text / color), created on first use.
+local function entryOf(category) return page.item(category.action, category.label) end
 
 local function layout(screenWidth, screenHeight, uiScale)
     local buttonWidth = math.floor(400 * uiScale)
@@ -56,12 +66,20 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
     -- consistent no matter how many categories are added. Change the 110
     -- below to move 'SETTINGS' up/down.
     local titleY = startY - 110 * uiScale
+    local title = page.label("title")
+    local titleText = widgets.resolveText(title.text)
+    local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
     helpers.withPop(screenWidth / 2, titleY + (60 * uiScale) / 2, titleScale, titleAlpha, function()
-        love.graphics.setColor(r/255, g/255, b/255, titleAlpha)
+        love.graphics.setColor(tr/255, tg/255, tb/255, titleAlpha)
         love.graphics.setFont(getFont(60 * uiScale))
-        love.graphics.printf("S E T T I N G S", 0, titleY, screenWidth, "center")
+        love.graphics.printf(titleText, 0, titleY, screenWidth, "center")
     end)
+
+    local reported = {
+        { kind = "label", id = "title", text = titleText, fontSize = 60, color = title.color,
+          x = 0, y = titleY, w = screenWidth, h = 60 * uiScale },
+    }
 
     local hovers = {}
     local anyHovered = false
@@ -78,10 +96,16 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
     local stagger = 0.08
     for i, category in ipairs(CATEGORIES) do
         local y = buttonY(startY, buttonHeight, buttonSpacing, i, extraGap)
-        helpers.drawPoppedButton(category.label, centerX, y, buttonWidth, buttonHeight,
-            selection == i, hovers[i], anyHovered, uiScale, r, g, b, t, baseDelay + (i - 1) * stagger)
+        local entry = entryOf(category)
+        local text = widgets.resolveText(entry.text)
+        local br, bg, bb = page.rgb(entry, r, g, b)
+        helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight,
+            selection == i, hovers[i], anyHovered, uiScale, br, bg, bb, t, baseDelay + (i - 1) * stagger)
+        reported[#reported + 1] = { kind = "button", id = "rows", key = category.action, index = i,
+            text = text, color = entry.color, x = centerX - buttonWidth / 2, y = y, w = buttonWidth, h = buttonHeight }
     end
     love.graphics.setColor(1, 1, 1, 1)
+    page.report(reported, screenWidth, screenHeight, uiScale)
 end
 
 -- Returns the category's `action` string ("keyboard", "back", ...) or nil.

@@ -18,6 +18,7 @@ local texture_filter_manager = UI.textures
 local crt_manager = UI.crt
 local loading_screen = UI.loading
 local intro_sequence = UI.intro
+local sounds = UI.sounds
 -- Also available (not used by this demo): UI.audio, UI.fonts, UI.keybinds,
 -- UI.controller, UI.other_settings, UI.widgets, UI.log
 
@@ -134,9 +135,15 @@ function love.load()
 
     gameLoad()
 
-    -- Loading screen: PLAY -> short load -> enter the game.
+    -- Loading screen: PLAY -> load -> enter the game.
+    -- The loading sound is ultimate_ui/sounds/loading.ogg (or .mp3 / .wav); until you add
+    -- your own, the bundled example_loading.ogg plays. Menu clicks use ui.ogg the same way.
     loading_screen.configure({
+        onStart = function(target)
+            sounds.playLoading()
+        end,
         onFinish = function(target)
+            sounds.stopLoading()
             if target == "game" then
                 ui_state.enterPlayScreen()
             end
@@ -146,7 +153,8 @@ function love.load()
     -- Hook menu actions up to your game.
     menu_input.configure({
         onPlay = function()
-            loading_screen.start("game", 1.0, "LOADING...")
+            -- The screen lasts exactly as long as the loading sound (1.0s if there is none).
+            loading_screen.start("game", sounds.loadingDuration(1.0), "LOADING...")
         end,
         onResume = function()
             ui_state.getState().gamePaused = false

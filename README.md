@@ -10,23 +10,39 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 | :---: | :---: |
 | ![F11 UI editor open, F1 help panel on the right](reference_screenshots/ui_editor_open.png) | ![F11 UI editor open, editing a widget](reference_screenshots/ui_editor_open_2.png) |
 
-| Clean Exported Menu | Keyboard Rebinding |
+| Clean Exported Menu | F1 Helper Menu |
 | :---: | :---: |
-| ![Main menu with the editor closed](reference_screenshots/ui_editor_closed_2.png) | ![Keyboard binds screen](reference_screenshots/ui_editor_keyboard_binds.png) |
+| ![Main menu with the editor closed](reference_screenshots/ui_editor_closed_2.png) | ![F1 helper menu panel](reference_screenshots/ui_editor_helper_widget.png) |
 
-| Controller Rebinding | Other Settings |
+| Keyboard Rebinding | Controller Rebinding |
 | :---: | :---: |
-| ![Controller binds screen](reference_screenshots/ui_editor_controller_binds.png) | ![Other settings screen](reference_screenshots/ui_editor_other_settings.png) |
+| ![Keyboard binds screen](reference_screenshots/ui_editor_keyboard_binds.png) | ![Controller binds screen](reference_screenshots/ui_editor_controller_binds.png) |
 
-| Texture & Screen Filters (CRT off) | Texture & Screen Filters (CRT on) |
+| Other Settings | Texture & Screen Filters (CRT off) |
 | :---: | :---: |
-| ![Textures screen with the CRT filter off](reference_screenshots/ui_editor_texture_settings_crt_off.png) | ![Textures screen with the Classic CRT filter on](reference_screenshots/ui_editor_texture_settings_crt_on.png) |
+| ![Other settings screen](reference_screenshots/ui_editor_other_settings.png) | ![Textures screen with the CRT filter off](reference_screenshots/ui_editor_texture_settings_crt_off.png) |
+
+| Texture & Screen Filters (CRT on) | |
+| :---: | :---: |
+| ![Textures screen with the Classic CRT filter on](reference_screenshots/ui_editor_texture_settings_crt_on.png) | |
+
+## Edit every menu, export in one keypress
+
+Run `love . --sandbox`, press **F11**, click any title, button or hint on **any** screen, and type. Main menu, pause menu, HUD, Settings, Keyboard, Controller, Other, Textures and the loading screen are all editable (text and color). Then export:
+
+| Key | Does | Works |
+| --- | --- | --- |
+| `Ctrl+E` (`Cmd+E` on Mac) | export the page on screen | **always**, edit mode or not |
+| `Ctrl+Shift+E` | export every page | **always**, edit mode or not |
+
+* The screen cuts to black with an animated `exporting . . .` while the files are written, then a **green toast** (`SAVED  5 files  >  exports/ultimate_ui/`) confirms it. Amber means it saved somewhere other than your project folder (the save folder, F9); red means it failed, with the reason.
+* Exports land in `exports/ultimate_ui/ui/`, mirroring the real folder layout: drag that folder onto the project root, choose Replace, done. Pages you have not opened this session are included too.
+* The menu background is exported as `ui/menu_background.lua`, so the picture you see in the sandbox is the picture plain `love .` shows. `return nil` in that file turns it off, and `config.menuBackground` overrides it.
+* If anything goes wrong, `ultimate_ui_export_log.txt` in the save folder (F9) records exactly what was tried and why it failed.
 
 ## F1 Helper Menu: Feature Stack
 
 Run the template with `love . --sandbox` and press **F1** (or the backtick key) at any time, on any screen, in the menus or in the game. A live helper panel opens in the top-right corner, and a status strip sits in the bottom-left corner showing the current screen, window size and active modes, with a reminder of `F1 = help | F11 = edit`.
-
-![F1 helper menu panel](reference_screenshots/ui_editor_helper_widget.png)
 
 The panel is a cheat sheet and a live readout in one:
 
@@ -35,7 +51,7 @@ The panel is a cheat sheet and a live readout in one:
 | **State** | Current screen, menu cursor row, whether a rebind is waiting, window size and UI scale, active texture filter and CRT filter, connected gamepads, mouse position, FPS, and how many `.lua` files auto-reload is watching |
 | **Jump to screen** | With the panel open, press `1`-`8` to go straight to Main, Pause, Settings, Keyboard, Controller, Other, Texture, or back into the Game, with no clicking through menus |
 | **Hotkeys** | `F2` window size presets, `F3` virtual gamepad, `F4` event log, `F5` restart, `F6` auto-reload, `F7` loading-screen preview, `F8` wipe saves (press twice), `F9` open the save folder, `F10` hide the overlay, `F12` clean screenshot |
-| **Editor** | `F11` edit mode, `B` background, `[` `]` blur, `-` `=` dim, `Ctrl+E` export the current page, `Ctrl+Shift+E` export all pages |
+| **Editor** | `F11` edit mode, `B` background, `[` `]` blur, `-` `=` dim. `Ctrl+E` exports the current page and `Ctrl+Shift+E` exports all pages, **with edit mode on or off**. Every page's titles and buttons are editable; Settings / Keyboard / Controller / Other / Textures / Loading export to `ui/page_texts.lua`, and the shared background to `ui/menu_background.lua` |
 
 A few notes:
 
@@ -78,6 +94,7 @@ The folder can be renamed or moved anywhere: every file finds its siblings relat
 | Rebinding | `UI.keybinds`, `UI.controller` |
 | Menu event routing (`keypressed`, `mousepressed`, `gamepadpressed`) | `UI.menu_input` |
 | Volumes, `playSFX`, `playMusic` | `UI.audio` |
+| Menu click + loading-screen sounds (drop `ui.ogg` / `loading.ogg` in `ultimate_ui/sounds/`) | `UI.sounds` |
 | Texture filter / CRT filters | `UI.textures`, `UI.crt` |
 | Loading screen / intro videos | `UI.loading`, `UI.intro` |
 | Title, version, font, intro videos | `UI.config` / `UI.configure{...}` |
@@ -86,11 +103,23 @@ The folder can be renamed or moved anywhere: every file finds its siblings relat
 
 Every module can also be required directly, e.g. `require("ultimate_ui.keybinds")`.
 
+## Sounds
+
+Two sounds are wired up out of the box, with examples in `ultimate_ui/sounds/`:
+
+* **Button click:** every menu button (mouse click, Enter, gamepad A, Esc / B for "back") plays `ui.ogg`.
+* **Loading screen:** `loading.ogg` plays when PLAY starts the loading screen, and **the screen lasts exactly as long as the sound**.
+
+To use your own, drag a file named `ui` and/or `loading` (`.ogg`, `.mp3` or `.wav`) into `ultimate_ui/sounds/`. It
+replaces the bundled `example_ui.ogg` / `example_loading.ogg` automatically, with no code or config. Both follow the
+Settings -> Other -> SFX volume. Details, and how to use them from your own code, are in `ultimate_ui/sounds/README.md`.
+
 ## Startup checks & console output
 
 `UI.init()` runs a quick self-check and prints a **WARNING** for anything that would otherwise just make the menus look wrong:
 a missing menu background image, no `.ttf` / `.otf` in `fonts/`, no screen-filter files in `crt_filters/` (or one that
-`crt_manager.lua` does not list), a missing / non-`.ogv` intro video, a save folder it cannot write to, a LOVE version other
+`crt_manager.lua` does not list), a missing / non-`.ogv` intro video, a sound in `sounds/` that will not decode or has an
+unusable extension, a save folder it cannot write to, a LOVE version other
 than 11.x, and the sandbox folder left in a packaged build. Turn it off with `startupChecks = false` in `config.lua`.
 
 To see the output:
@@ -109,11 +138,13 @@ ultimate_ui/              <- the whole library: copy this folder, nothing else
   init.lua                the single entry point  (require("ultimate_ui"))
   config.lua              title, version, font, intro videos, ...
   ui/                     the screens: main menu, pause, settings, keyboard, controller, ...
+                          (page_texts.lua = edited texts, menu_background.lua = shared background: both exported here)
   fonts/  background/     drop your .ttf and your menu background images here
+  sounds/                 drop ui.ogg (button click) and loading.ogg (loading screen) here
   crt_filters/            the screen-filter shaders
   sandbox/                dev tools (love . --sandbox); delete before you ship
-  audio.lua  input.lua  keybinds.lua  controller.lua  menu_input.lua  checks.lua  debuglog.lua  ...
-exports/                  where the sandbox editor writes exported pages
+  audio.lua  ui_sounds.lua  input.lua  keybinds.lua  controller.lua  menu_input.lua  checks.lua  debuglog.lua  ...
+exports/                  where the sandbox editor writes exported pages (drag exports/ultimate_ui onto the project root)
 reference_screenshots/    the images used in this README
 ```
 
@@ -131,4 +162,4 @@ Earlier versions put ~20 files straight in the project root. If you cloned that 
 - **Save files** gained an `ultimate_ui_` prefix (`keybinds.txt` -> `ultimate_ui_keybinds.txt`, and so on) so they
   can't collide with your game's own files. Players' saved settings reset once; rename the old files in the save
   folder if you want to carry them over.
-- **Exports.** The sandbox editor now writes to `exports/ultimate_ui/ui/...`, mirroring the real path.
+- **Exports.** The sandbox editor now writes to `exports/ultimate_ui/ui/...`, mirroring the real path. Export works with edit mode on or off (`Ctrl+E` / `Ctrl+Shift+E`).

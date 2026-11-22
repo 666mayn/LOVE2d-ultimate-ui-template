@@ -7,6 +7,8 @@ exports/
   ultimate_ui/
     ui/
       main_menu.lua    <- replaces  ultimate_ui/ui/main_menu.lua
+      page_texts.lua   <- replaces  ultimate_ui/ui/page_texts.lua  (Settings, Keyboard, Controller,
+                                    Other, Textures and Loading texts, all in one file)
 ```
 
 (If you keep the library somewhere else, say `libs/ultimate_ui/`, the exports mirror that
@@ -22,7 +24,10 @@ path instead: `exports/libs/ultimate_ui/ui/main_menu.lua`.)
    (or copy a single file over the one it names). The sandbox restarts by itself.
 4. Your `ultimate_ui/ui/` files are now your custom pages -- take them into your own build.
 
-Every export is a **whole screen file, not a fragment**. It keeps providing the functions
+The main menu, pause menu and HUD export as **whole screen files**; the other pages keep their layout in
+code, so their edited titles / buttons / hints export as the single `page_texts.lua` (only what you changed).
+
+Every screen export is a **whole screen file, not a fragment**. It keeps providing the functions
 `ultimate_ui/ui/init.lua` and `menu_input.lua` already call, so nothing else has to change.
 
 ## Good to know
