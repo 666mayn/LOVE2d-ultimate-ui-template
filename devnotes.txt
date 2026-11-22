@@ -1,5 +1,4 @@
-- testing today - 11.21.26
-
+adding sound wiring now
 
 
 
@@ -9,6 +8,3 @@
 - include 2 replaceable intro clips to display intro clip playability in framework
 - add sound wiring, and example sounds with obvious nesting for easy modification for their own projects
 - Yo, destructible physics-driven UI transitions that double as an actual game physics engine
-- make more love2d 'gapware', combine after all polished enough to one ultimate love2d 'devtool' or something
-	- next: make physics library like bump but better or using bump, but with more rounded physics features
-		- maybe a fork of bump? Probably an entirely separate repo requiring bump instead but this is still up for question
