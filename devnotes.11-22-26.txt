@@ -1,0 +1,3 @@
+round buttons now in the editor, and you can move any button around with it's accompanying text up and down the center axis on the screen! anywhere you want. Titles also, pretty cool. I'm pumped with it.
+
+Tomorrow? Who knows. Probably starting that physics on buttons attempt. I just want to see where that takes it.
