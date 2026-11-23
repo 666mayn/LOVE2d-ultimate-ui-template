@@ -72,7 +72,7 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
     helpers.withPop(screenWidth / 2, titleY + (60 * uiScale) / 2, titleScale, titleAlpha, function()
         love.graphics.setColor(tr/255, tg/255, tb/255, titleAlpha)
-        love.graphics.setFont(getFont(60 * uiScale))
+        love.graphics.setFont(getFont(60 * uiScale, "title", title.font))
         love.graphics.printf(titleText, 0, titleY, screenWidth, "center")
     end)
 
@@ -100,7 +100,7 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
         local text = widgets.resolveText(entry.text)
         local br, bg, bb = page.rgb(entry, r, g, b)
         helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight,
-            selection == i, hovers[i], anyHovered, uiScale, br, bg, bb, t, baseDelay + (i - 1) * stagger)
+            selection == i, hovers[i], anyHovered, uiScale, br, bg, bb, t, baseDelay + (i - 1) * stagger, entry.font)
         reported[#reported + 1] = { kind = "button", id = "rows", key = category.action, index = i,
             text = text, color = entry.color, x = centerX - buttonWidth / 2, y = y, w = buttonWidth, h = buttonHeight }
     end

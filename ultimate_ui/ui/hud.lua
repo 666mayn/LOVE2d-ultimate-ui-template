@@ -18,7 +18,7 @@ function hud.drawVersionText(screenWidth, screenHeight, uiScale)
     local padding = 20 * uiScale
     local y = screenHeight - (18 * uiScale) - padding
 
-    love.graphics.setFont(getFont(18 * uiScale))
+    love.graphics.setFont(getFont(18 * uiScale, "hint"))
     love.graphics.setColor(0.8, 0.8, 0.8, 1.0)
     love.graphics.printf(config.version, 0, y, screenWidth - padding, "right")
     love.graphics.setColor(1, 1, 1, 1)
@@ -28,7 +28,7 @@ end
 -- Settings -> Other -> SHOW FPS toggles.
 function hud.drawFPS(uiScale)
     if not config.showFPS then return end
-    love.graphics.setFont(getFont(18 * uiScale))
+    love.graphics.setFont(getFont(18 * uiScale, "hud"))
     love.graphics.setColor(0.4, 1, 0.5, 1)
     love.graphics.print("FPS: " .. love.timer.getFPS(), 12 * uiScale, 10 * uiScale)
     love.graphics.setColor(1, 1, 1, 1)
@@ -40,7 +40,7 @@ end
 function hud.drawSidePanel(stats, x, y, uiScale)
     local r, g, b = helpers.getRainbowColor(ui_state.getState().pulseTime)
     love.graphics.setColor(r/255, g/255, b/255)
-    love.graphics.setFont(getFont(30 * uiScale))
+    love.graphics.setFont(getFont(30 * uiScale, "hud"))
     for i, stat in ipairs(stats) do
         love.graphics.print(stat[1] .. ":  " .. tostring(stat[2]), x, y + (i - 1) * 40 * uiScale)
     end
@@ -60,7 +60,7 @@ end
 function hud.drawGameTitle(screenWidth, uiScale)
     local r, g, b = helpers.getRainbowColor(ui_state.getState().pulseTime)
     love.graphics.setColor(r/255, g/255, b/255)
-    love.graphics.setFont(getFont(60 * uiScale))
+    love.graphics.setFont(getFont(60 * uiScale, "title"))
     local textWidth = love.graphics.getFont():getWidth(config.title)
     love.graphics.print(config.title, (screenWidth / 2) - (textWidth / 2), 50 * uiScale)
     love.graphics.setColor(1, 1, 1, 1)

@@ -77,6 +77,7 @@ Open it with **F7** (loading preview), or Ctrl+click PLAY.
 | Select a title / button | Click it (outlines show what's selectable) |
 | Change its text | Just type. Backspace deletes, Ctrl+V pastes |
 | Change its color | **Tab** to the COLOR field and type `#RRGGBB` or `rainbow`, or click a swatch |
+| Change its font | **Tab** twice to the FONT field (or click it), then click `<` / `>` or press **Left / Right**. `default` = its role / the project font |
 | Reset it | **Del** |
 | Deselect | **Esc** (while something is selected) |
 | Pause / walk the menu | With nothing selected, **Esc**, the arrow keys and **Enter** still go to the game, so you can pause, move through the pause menu and resume without leaving edit mode |

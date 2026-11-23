@@ -101,7 +101,7 @@ function intro_sequence.draw(canvasWidth, canvasHeight, uiScale)
     love.graphics.draw(introVideo, drawX, drawY, 0, scale, scale)
 
     love.graphics.setColor(1, 1, 1, 0.8)
-    love.graphics.setFont(helpers.getFont(18 * uiScale))
+    love.graphics.setFont(helpers.getFont(18 * uiScale, "hint"))
     love.graphics.printf("Press any key to skip", 0, canvasHeight - 50 * uiScale, canvasWidth, "center")
 end
 

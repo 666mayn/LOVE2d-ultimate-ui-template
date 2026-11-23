@@ -115,7 +115,7 @@ local function gameDraw(w, h)
         { "CRT", string.upper(crt_manager.getActive().name) },
     }, w, h, uiScale)
 
-    love.graphics.setFont(ui.getFont(18 * uiScale))
+    love.graphics.setFont(ui.getFont(18 * uiScale, "body"))
     love.graphics.setColor(0.7, 0.7, 0.7, 1)
     love.graphics.printf("Move with your bound keys -- [Esc] to pause", 0, h - 50 * uiScale, w, "center")
 end

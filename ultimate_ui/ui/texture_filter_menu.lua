@@ -17,6 +17,7 @@ local ui_state = require(ROOT .. ".ui_state")
 local helpers = require(ROOT .. ".ui.helpers")
 local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
+local rowFont            -- per-row font override for the row being drawn (entry.font), see fonts.lua
 local texture_filter_manager = require(ROOT .. ".texture_filter_manager")
 local crt_manager = require(ROOT .. ".crt_manager")
 
@@ -93,9 +94,9 @@ local function drawRow(label, valueText, valueColor, centerX, y, rowWidth, rowHe
 
     local fontSize = math.min(24 * uiScale, rowHeight * 0.45)
     local pad = 24 * uiScale
-    local textY = y + (rowHeight - fontSize) / 2
     love.graphics.setColor(r/255, g/255, b/255, alpha)
-    love.graphics.setFont(getFont(fontSize))
+    love.graphics.setFont(getFont(fontSize, "row", rowFont))
+    local textY = helpers.textY(y, rowHeight)
     love.graphics.printf(label, centerX - rowWidth / 2 + pad, textY, rowWidth * 0.5, "left")
 
     if valueText ~= "" then
@@ -120,7 +121,7 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
     helpers.withPop(centerX, titleY + (52 * uiScale) / 2, titleScale, titleAlpha, function()
         love.graphics.setColor(tr/255, tg/255, tb/255, titleAlpha)
-        love.graphics.setFont(getFont(52 * uiScale))
+        love.graphics.setFont(getFont(52 * uiScale, "title", title.font))
         love.graphics.printf(titleText, 0, titleY, screenWidth, "center")
     end)
     -- What was drawn, for the sandbox editor (see widgets.textPage).
@@ -142,6 +143,7 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
             and mouseY >= y and mouseY <= y + rowHeight
         local scale, alpha = helpers.popIn(t, baseDelay + (i - 1) * stagger, 0.35)
         local entry = page.item(row.key, row.label)
+        rowFont = entry.font
         local rowText = widgets.resolveText(entry.text)
         local rr, rg, rb = page.rgb(entry, r, g, b)
         reported[#reported + 1] = { kind = "button", id = "rows", key = row.key, index = i, text = rowText,
@@ -165,7 +167,7 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
                     centerX, y, rowWidth, rowHeight, isSelected, hovered, uiScale, rr, rg, rb, alpha)
             else
                 helpers.drawScaledButton(rowText, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, false, uiScale * fit, rr, rg, rb, alpha)
+                    isSelected, hovered, false, uiScale * fit, rr, rg, rb, alpha, entry.font)
             end
         end)
     end
@@ -177,7 +179,7 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
     local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
         love.graphics.setColor(hr/255, hg/255, hb/255, hintAlpha)
-        love.graphics.setFont(getFont(18 * uiScale))
+        love.graphics.setFont(getFont(18 * uiScale, "hint", hint.font))
         love.graphics.printf(hintText, 0, hintY, screenWidth, "center")
     end)
     reported[#reported + 1] = { kind = "label", id = "hint", text = hintText, fontSize = 18, color = hint.color,

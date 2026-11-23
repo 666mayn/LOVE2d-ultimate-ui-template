@@ -6,6 +6,10 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 
 ## Screenshots
 
+| Live F11 Font Editor (per-element font picker) | |
+| :---: | :---: |
+| ![F11 font editor showing the new font families](reference_screenshots/ui_editor_font_editor.png) | |
+
 | Live F11 UI Editor (with F1 help panel) | Live F11 UI Editor (editing text and color) |
 | :---: | :---: |
 | ![F11 UI editor open, F1 help panel on the right](reference_screenshots/ui_editor_open.png) | ![F11 UI editor open, editing a widget](reference_screenshots/ui_editor_open_2.png) |
@@ -97,7 +101,8 @@ The folder can be renamed or moved anywhere: every file finds its siblings relat
 | Menu click + loading-screen sounds (drop `ui.ogg` / `loading.ogg` in `ultimate_ui/sounds/`) | `UI.sounds` |
 | Texture filter / CRT filters | `UI.textures`, `UI.crt` |
 | Loading screen / intro videos | `UI.loading`, `UI.intro` |
-| Title, version, font, intro videos | `UI.config` / `UI.configure{...}` |
+| Title, version, intro videos | `UI.config` / `UI.configure{...}` |
+| Fonts: whole project, per element type, per element | `config.font`, `config.fontRoles`, `font = "..."` on a widget (see `ultimate_ui/fonts/README.md`) |
 | Build your own data-driven screens | `UI.widgets` |
 | Path of a file inside the folder | `UI.path("background/my_image.png")` |
 
@@ -117,7 +122,7 @@ Settings -> Other -> SFX volume. Details, and how to use them from your own code
 ## Startup checks & console output
 
 `UI.init()` runs a quick self-check and prints a **WARNING** for anything that would otherwise just make the menus look wrong:
-a missing menu background image, no `.ttf` / `.otf` in `fonts/`, no screen-filter files in `crt_filters/` (or one that
+a missing menu background image, no `.ttf` / `.otf` under `fonts/` (sub-folders count), no screen-filter files in `crt_filters/` (or one that
 `crt_manager.lua` does not list), a missing / non-`.ogv` intro video, a sound in `sounds/` that will not decode or has an
 unusable extension, a save folder it cannot write to, a LOVE version other
 than 11.x, and the sandbox folder left in a packaged build. Turn it off with `startupChecks = false` in `config.lua`.

@@ -4,7 +4,8 @@
 -- texts / colors, press Ctrl+E (or Ctrl+Shift+E), then drag exports/ultimate_ui/ui/page_texts.lua
 -- over this file and restart. You can also edit it by hand.
 --
--- Layout:  [page id][key] = { text = "...", color = { r, g, b } | "rainbow" }
+-- Layout:  [page id][key] = { text = "...", color = { r, g, b } | "rainbow", font = "fibberish" }
+--   font is optional: a font name from ultimate_ui/fonts/ for just that text (see fonts/README.md).
 --   page id : settingsMenu | keyboardMenu | controllerMenu | otherSettingsMenu
 --             | textureFilterMenu | loadingScreen
 --   key     : "title" | "hint" | "rows#<row key>"   (a row key is an action name, e.g. "rows#back")

@@ -56,6 +56,16 @@
 -- Lua, but every title / button / row label / hint line is described as data so the sandbox
 -- editor (F11) can edit it too. See the "Text pages" section below.
 --
+-- FONTS: every widget (label, stack, stats) and every stack item / stats row may carry
+--   font = "fibberish"      one font for just this element (any name fonts.lua knows; an item's
+--                           font beats its stack's)
+--   role = "title"          which ROLE the element belongs to (labels default to "title", the
+--                           "subtitle" / "hint" ids to their own, stack buttons to "button",
+--                           stats to "stat" / "hud"); config.fontRoles = { title = "boldpixels" }
+--                           then sets the font of every element with that role at once.
+-- With neither, the element uses its role's font, else the project font (config.font).
+-- See ultimate_ui/fonts.lua.
+--
 -- Colors are "rainbow" (the animated default) or { r, g, b } with each 0..1.
 
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
@@ -158,6 +168,7 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
                         text = resolveText(it.text), action = it.action,
                         x = centerX - bw / 2, y = y, w = bw, h = bh, cx = centerX,
                         color = it.color or w.color, index = i,
+                        font = it.font or w.font,
                         popDelay = (pop.delay or 0) + (i - 1) * (pop.stagger or 0),
                         popDuration = pop.duration or 0.4,
                     }
@@ -177,6 +188,7 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
                 local item = {
                     kind = "label", widget = w, id = w.id,
                     text = resolveText(w.text), fontSize = w.fontSize,
+                    font = w.font, role = w.role or ((w.id == "subtitle" or w.id == "hint") and w.id or "title"),
                     x = 0, y = y, w = screenWidth, h = h,
                     color = w.color,
                     popDelay = pop.delay or 0, popDuration = pop.duration or 0.5,
@@ -188,14 +200,17 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
                 local list = widgets.data[def.id .. "." .. w.id] or {}
                 local fs = w.fontSize or 30
                 local lh = (w.lineHeight or 40) * uiScale
-                local font = getFont(fs * uiScale)
+                local role = w.role or (def.static and "hud" or "stat")
                 for i, stat in ipairs(list) do
                     local ov = w.items and w.items[i] or nil
+                    local fontName = (ov and ov.font) or w.font
+                    local font = getFont(fs * uiScale, role, fontName)
                     local label = (ov and ov.text ~= nil) and resolveText(ov.text) or tostring(stat[1])
                     local shownText = label .. ":  " .. tostring(stat[2])
                     items[#items + 1] = {
                         kind = "stat", widget = w, id = w.id, index = i,
                         text = label, shownText = shownText, fontSize = fs,
+                        font = fontName, role = role,
                         x = (w.x or 0) * uiScale, y = (w.y or 0) * uiScale + (i - 1) * lh,
                         w = font:getWidth(shownText), h = fs * uiScale,
                         color = (ov and ov.color) or w.color,
@@ -251,18 +266,18 @@ function widgets.draw(def, screenWidth, screenHeight, selection, mouseX, mouseY,
         if not static then scale, alpha = helpers.popIn(t, item.popDelay, item.popDuration) end
         if item.kind == "stat" then
             love.graphics.setColor(r / 255, g / 255, b / 255, alpha)
-            love.graphics.setFont(getFont(item.fontSize * uiScale))
+            love.graphics.setFont(getFont(item.fontSize * uiScale, item.role, item.font))
             love.graphics.print(item.shownText, item.x, item.y)
         elseif item.kind == "label" then
             helpers.withPop(screenWidth / 2, item.y + item.h / 2, scale, alpha, function()
                 love.graphics.setColor(r / 255, g / 255, b / 255, alpha)
-                love.graphics.setFont(getFont(item.fontSize * uiScale))
+                love.graphics.setFont(getFont(item.fontSize * uiScale, item.role, item.font))
                 love.graphics.printf(item.text, 0, item.y, screenWidth, "center")
             end)
         else
             helpers.withPop(item.cx, item.y + item.h / 2, scale, alpha, function()
                 helpers.drawScaledButton(item.text, item.cx, item.y, item.w, item.h,
-                    selection == item.index, item.hovered, anyHovered, uiScale, r, g, b, alpha)
+                    selection == item.index, item.hovered, anyHovered, uiScale, r, g, b, alpha, item.font)
             end)
         end
     end
@@ -378,12 +393,13 @@ function widgets.pageTexts() return loadPageTexts() end
 widgets.defaults = setmetatable({}, { __mode = "k" })
 
 local function giveOverrides(def, key, target)
-    widgets.defaults[target] = { text = target.text, color = target.color }
+    widgets.defaults[target] = { text = target.text, color = target.color, font = target.font }
     local mine = loadPageTexts()[def.id]
     local o = mine and mine[key]
     if type(o) == "table" then
         if type(o.text) == "string" then target.text = o.text end
         if o.color ~= nil then target.color = o.color end
+        if type(o.font) == "string" then target.font = o.font end
     end
 end
 
@@ -394,7 +410,7 @@ function widgets.textPage(spec)
 
     for _, l in ipairs(spec.labels or {}) do
         local w = { id = l.id, type = "label", text = l.text, fontSize = l.fontSize or 30,
-                    color = l.color or "rainbow" }
+                    color = l.color or "rainbow", font = l.font, role = l.role }
         giveOverrides(def, w.id, w)
         def.widgets[#def.widgets + 1] = w
         byId[w.id] = w

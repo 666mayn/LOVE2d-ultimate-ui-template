@@ -7,6 +7,73 @@ This file is the running record of what changed and why, so work can pick up whe
 
 ---
 
+## Patch: nested font folders, project-wide font, per-element fonts
+
+**Headline:** fonts can now live in nested folders, and there are **3 new font families** to choose from (`fibberish`,
+`pixeloid_sans`, `playersansmono`, alongside the existing `boldpixels`). Pick a font **per UI element** with the new FONT row in
+the F11 editor, or switch the **entire project at once** with `config.font` / `UI.configure{ font = ... }`. It is entirely up to
+the user: mix per-element fonts, set per-element-type roles, or change everything in one line. New screenshot added to the top of
+the README (`reference_screenshots/ui_editor_font_editor.png`).
+
+**Problem:** fonts moved into sub-folders (`fonts/font_boldpixels/boldpixels.ttf`, ...) but `fonts.lua` only looked at the top
+level of `fonts/`, so none of them were found, and there was no way to choose a font per element type.
+
+**New behaviour**
+
+* **Recursive scan.** Every `.ttf` / `.otf` anywhere under `fonts/` (6 levels deep) is registered. Fonts are rasterized lazily
+  per (font, size), so many families cost nothing until used. `UI.fonts.list()` shows every usable name.
+* **Names.** A font is addressed by family folder (`"pixeloid_sans"`, `font_` prefix optional), file name (with or without
+  `.ttf`) or path inside `fonts/`, case-insensitive. A family name resolves to its main file (the one named like the folder,
+  else a Regular/Classic file, else the shortest name).
+* **1. Whole project:** `config.font = "boldpixels"` (or `UI.configure{ font = ... }`, `UI.fonts.setDefault(...)`).
+* **2. Per element type:** `config.fontRoles = { button = ..., title = ..., hint = ..., stat = ..., ... }`. Roles:
+  `title`, `subtitle` (-> title), `button`, `row` (-> button), `hint`, `stat`, `hud` (-> stat), `body`.
+* **3. One element:** `font = "name"` on a widget, stack item or stats row in a `ui/*.lua` screen (and in `ui/page_texts.lua`
+  for the hand-coded pages). It survives the editor's export (`font` / `role` are kept and sorted next to `fontSize`).
+* **Resolution order:** element `font` > role > project font > first font found > LOVE built-in. Unknown names warn once and fall back.
+* **API:** `fonts.get(size, role_or_name, explicitName)` (`UI.ui.getFont` is the same function), `fonts.list()`, `fonts.resolve(name)`,
+  `fonts.setDefault(name)`, `fonts.setRole(role, name)`. `helpers.drawScaledButton` / `drawPoppedButton` take an optional trailing `fontName`.
+* **Startup check** (`checks.lua`) now scans nested folders and warns when `config.font` or any `config.fontRoles` entry names a font that is not there.
+
+| File | Change |
+| --- | --- |
+| `ultimate_ui/fonts.lua` | Rewritten: recursive registry, name resolution, roles, lazy per-font size cache. |
+| `ultimate_ui/config.lua` | `font` docs, new `fontRoles`. |
+| `ultimate_ui/ui/widgets.lua` | `font` / `role` on widgets, items and stats rows; text-page overrides accept `font`. |
+| `ultimate_ui/ui/helpers.lua` | Buttons use the `button` role + optional per-button font. |
+| `ultimate_ui/ui/{settings,keyboard,controller,other_settings,texture_filter}_menu.lua`, `loading_screen.lua`, `hud.lua`, `intro_sequence.lua`, `main.lua` | Titles / hints / rows / stats / HUD draw through roles. |
+| `ultimate_ui/sandbox/{editor,serialize}.lua` | Selection box uses the element's real font; export keeps `font` / `role`. |
+| `ultimate_ui/checks.lua`, `ultimate_ui/fonts/README.md`, `ultimate_ui/ui/page_texts.lua` | Updated for the above. |
+
+**Verification:** run in a stubbed-LOVE harness (no real LOVE available here) against the real folder tree: name resolution for
+every spelling, project font, roles, per-element override, bad-name fallback, and every menu page + HUD + loading screen
+drawing with the chosen fonts. **Not run in real LOVE.**
+
+**F11 editor: FONT row.** The edit panel now has `FONT  [<] name [>]` under COLOR. Click `<` / `>` (or the name), or press
+Left/Right (Up/Down) while FONT is focused (Tab goes TEXT -> COLOR -> FONT). It steps through `default` (the element's role /
+project font) and every font under `fonts/`, wraps around, and the name is drawn in the font it picks. The change shows live,
+survives restarts like text/color edits (saved in the save folder, dropped if the file changed underneath), `Del` resets it,
+and Ctrl+E exports `font = "..."` into the screen file (or into `page_texts.lua` for the hand-coded pages).
+Files: `ultimate_ui/sandbox/editor.lua`.
+
+**Vertical centering per font.** Button / row text was placed with `y + (height - fontSize) / 2`, which assumes the font's line
+box is exactly `fontSize` tall. It isn't: each family has its own ascent / descent and cap height, so fibberish sat high,
+Pixeloid low, PlayerSansMono lowest. `fonts.capCenter(font)` now measures where the middle of a capital "H" really is
+(`love.font.newRasterizer` glyph bearing + the font's ascent; falls back to the middle of the line box if that fails), and
+`fonts.textY(boxY, boxH, font)` / `helpers.textY(boxY, boxH)` return the y that centers capitals in a box. Used by
+`drawScaledButton` (every button in every menu) and the label / value text of the Keyboard, Controller, Other and Textures rows.
+Measured shift at 36px in a 60px button: boldpixels +2, fibberish +6, Pixeloid -4, PlayerSansMono -2 (pixels, + = down),
+so each family is corrected by its own amount, and any font you add is handled automatically.
+Last-mile tweak: `config.fontNudge = { fibberish = 0.05 }` (fraction of font size, + = down).
+The editor's FONT preview now shrinks the name to fit its box (PlayerSansMono used to spill over the counter) and is centered the same way.
+Files: `fonts.lua`, `ui/helpers.lua`, `ui/{keyboard,controller,other_settings,texture_filter}_menu.lua`, `config.lua`, `sandbox/editor.lua`.
+Verified with FreeType-backed stub metrics, not in real LOVE.
+
+**Not covered:** the editor sets a font per element only (not per role; use `config.fontRoles`); the font size list is shared by
+all fonts, so bitmap-style fonts (PlayerSansMono) may want their own sizes. The FONT row was run in the stubbed harness only.
+
+---
+
 ## Patch: exports fixed + polished (always-on keys, cut screen, save toast), shared background in plain `love .`
 
 **Problem:** exporting appeared to do nothing, and the background seen in the sandbox never showed in plain `love .`.

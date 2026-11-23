@@ -8,9 +8,30 @@ local config = {
     subtitle = "",                                  -- optional line under the main-menu title ("" = none)
     version  = "v0.1.0",
 
-    -- Font: drop any .ttf / .otf into ultimate_ui/fonts/ and it is used automatically.
-    -- Several in there? Name the one you want (file name inside that folder); nil = first found.
-    font = nil,                -- e.g. "myfont.ttf"
+    -- FONTS. Drop .ttf / .otf files anywhere under ultimate_ui/fonts/ (nested folders are fine) and
+    -- they are all registered. UI.fonts.list() prints every name you can use below. A name can be a
+    -- family folder ("pixeloid_sans"), a file name ("PixeloidSans-Bold" / "PixeloidSans-Bold.ttf"),
+    -- or a path inside fonts/ -- case does not matter.
+    --
+    -- 1) Whole project at once: this font is used for ALL text (menus, HUD, sandbox). nil = the first
+    --    font found.
+    font = nil,                -- e.g. "boldpixels"
+
+    -- 2) Per element type: override the font for one KIND of text; everything not listed keeps the
+    --    project font above. Roles: title, subtitle (falls back to title), button, row (the
+    --    key/controller/settings rows; falls back to button), hint, stat, hud (falls back to stat), body.
+    fontRoles = {
+        -- button = "pixeloid_sans",
+        -- title  = "boldpixels",
+        -- hint   = "player_sans_mono",
+    },
+    -- Text is centered in buttons / rows by measuring the font's capital letters, so every font
+    -- lines up on its own. If one family still looks a hair high or low, nudge it here, in fractions
+    -- of the font size (+ = down):  fontNudge = { fibberish = 0.05, player_sans_mono = -0.03 }
+    fontNudge = {},
+
+    -- 3) One single element: put  font = "fibberish"  on that widget / stack item in its ui/*.lua
+    --    screen file (see ui/widgets.lua). It beats its role and the project font.
 
     -- Optional startup videos (.ogv) played back to back before the main menu.
     -- Leave empty to skip the intro entirely.

@@ -1,0 +1,7 @@
+- awake, and adding open-source reusable font options, with subset stylings to the editor...
+	- Added 3 new font families with subset stylings (bold, italic, large bold, large italic, ...)
+	- might need to add a warning for the boldpixels subset to add Yuki to credits for
+	  creating the font per the license, but the license is there.
+
+- after fonts are live, I will begin creating a multi-style button editor, with some small physics
+(hopefully, we will see how testing goes here, phys always fucky with LOVE2d, still considering bump inspo for this option...)

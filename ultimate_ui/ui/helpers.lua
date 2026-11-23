@@ -70,8 +70,13 @@ function helpers.drawMenuBackdrop(screenWidth, screenHeight, fallbackDim)
     love.graphics.setColor(1, 1, 1, 1)
 end
 
+-- y for love.graphics.print / printf that centers CAPITALS (in the current font) in a box.
+-- Fonts place their letters differently inside the line box, so this measures instead of guessing.
+helpers.textY = function(boxY, boxH) return fonts.textY(boxY, boxH, love.graphics.getFont()) end
+
 -- Helper for drawing scaled buttons
-function helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha)
+-- `fontName` (optional) picks this one button's font; otherwise the "button" role / project font is used.
+function helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha, fontName)
     alpha = alpha or 1
     if isHovered or (isSelected and not anyHovered) then
         love.graphics.setColor(80/255, 80/255, 80/255, alpha)
@@ -86,8 +91,8 @@ function helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, i
     end
     love.graphics.setColor(r/255, g/255, b/255, alpha)
 
-    love.graphics.setFont(getFont(36 * uiScale))
-    love.graphics.printf(text, centerX - buttonWidth / 2, y + (buttonHeight - (36 * uiScale)) / 2, buttonWidth, "center")
+    love.graphics.setFont(getFont(36 * uiScale, "button", fontName))
+    love.graphics.printf(text, centerX - buttonWidth / 2, helpers.textY(y, buttonHeight), buttonWidth, "center")
 end
 
 -- Tracks pop-in animation timers for each named popup/menu, keyed by a
@@ -122,10 +127,10 @@ end
 
 -- Draws a button scaled+faded in around its own center using popIn(), rather
 -- than the whole screen's origin, so it pops in place instead of sliding.
-function helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, t, delay)
+function helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, t, delay, fontName)
     local scale, alpha = helpers.popIn(t, delay, 0.4)
     helpers.withPop(centerX, y + buttonHeight / 2, scale, alpha, function()
-        helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha)
+        helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha, fontName)
     end)
 end
 

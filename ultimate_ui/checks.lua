@@ -8,7 +8,8 @@
 --
 -- What it checks
 --   * menuBackground     image missing / won't decode, blur or dim out of range
---   * fonts              no .ttf/.otf in fonts/, or config.font names a missing file
+--   * fonts              no .ttf/.otf under fonts/ (sub-folders included), or config.font /
+--                        config.fontRoles names a font that is not there
 --   * CRT filters        none (or some) of crt_filters/ present, or a filter file
 --                        that crt_manager.lua doesn't list
 --   * intro videos       a file in config.introVideos is missing / not .ogv
@@ -108,17 +109,30 @@ local function checkFonts(config)
         return warn("fonts folder not found (%s/) -- using LOVE's built-in font, so the menus will not look like the template. Create it and drop a .ttf or .otf inside.", dir)
     end
 
-    local found = listFiles(dir, { "%.ttf$", "%.otf$" })
+    local okf, fonts = pcall(require, ROOT .. ".fonts")
+    if not okf then return warn("fonts.lua could not be loaded: %s", tostring(fonts)) end
+    local found = fonts.list()                         -- every .ttf / .otf, nested folders included
     if #found == 0 then
-        return warn("no .ttf or .otf font files in %s/ -- using LOVE's built-in font, so the menus will not look like the template. Drop any .ttf / .otf in there (any file name).", dir)
+        return warn("no .ttf or .otf font files in %s/ (or its sub-folders) -- using LOVE's built-in font, so the menus will not look like the template. Drop any .ttf / .otf in there (any file name).", dir)
     end
 
-    if config.font and not isFile(dir .. "/" .. config.font) then
-        warn("config.font = \"%s\" is not in %s/ -- falling back to \"%s\". Files there: %s",
-            config.font, dir, found[1], table.concat(found, ", "))
-    elseif #found > 1 and not config.font then
-        debuglog.log("fonts: %d fonts in %s/, using \"%s\" (the first, alphabetically). Set config.font = \"<file name>\" to choose.",
-            #found, dir, found[1])
+    local names = {}
+    for _, f in ipairs(found) do names[#names + 1] = f.name end
+
+    -- Every font name the config mentions must exist (fonts.lua also warns, but only when first drawn).
+    local function verify(label, name)
+        if name ~= nil and not fonts.resolve(name) then
+            warn("%s = \"%s\" is not a font under %s/ -- ignored. Available: %s", label, tostring(name), dir, table.concat(names, ", "))
+        end
+    end
+    verify("config.font", config.font)
+    if type(config.fontRoles) == "table" then
+        for role, name in pairs(config.fontRoles) do verify("config.fontRoles." .. tostring(role), name) end
+    end
+
+    if #found > 1 and not config.font then
+        debuglog.log("fonts: %d fonts under %s/, project font is \"%s\" (the first found). Set config.font = \"<name>\" to choose; UI.fonts.list() shows every name.",
+            #found, dir, found[1].name)
     end
 end
 

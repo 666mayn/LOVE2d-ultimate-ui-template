@@ -6,8 +6,10 @@
 --   F11            edit mode on/off
 --   click          select a widget            Esc   deselect (nothing selected: Esc/arrows/Enter go to the game)
 --   Ctrl+click     press the button (uses the game, no editing)
---   type           change the text            Tab   switch TEXT <-> COLOR
+--   type           change the text            Tab   switch TEXT -> COLOR -> FONT
 --   COLOR field    #RRGGBB, or "rainbow"      Del   reset widget to original
+--   FONT field     < > (click, or Left/Right when FONT is focused) steps through every font in
+--                  fonts/; "default" = the element's role font / the project font
 --   Ctrl+V         paste (text field)
 --   Ctrl+E         export this page -> exports/<its file>      (e.g. exports/ui/main_menu.lua)
 --   Ctrl+Shift+E   export ALL pages -> exports/ (a complete set, edits included)
@@ -61,10 +63,10 @@ local SWATCHES = {
 local active = false
 local logger = function() end
 local sel = nil                  -- { def, key, target, label, item }
-local field = "text"             -- "text" | "color"
-local buf = { text = "", color = "" }
+local field = "text"             -- "text" | "color" | "font"
+local buf = { text = "", color = "" }   -- (the FONT field has no buffer: it is picked, not typed)
 local edits = nil                -- edits[screenId][key] = { text =, color =, from = {...} }
-local originals = setmetatable({}, { __mode = "k" })   -- target -> { text =, color =  } as the FILE has them
+local originals = setmetatable({}, { __mode = "k" })   -- target -> { text =, color =, font = } as the FILE has them
 local pristine = setmetatable({}, { __mode = "k" })    -- def -> { dim =, bg =, bgSpec = } as the FILE has them
 local applied = setmetatable({}, { __mode = "k" })     -- defs already given their saved edits
 local bgBlur = 8                 -- blur level used when a background is switched on
@@ -114,7 +116,7 @@ end
 -- Remember what the FILE says for a target, before any edit touches it.
 local function remember(target)
     if not originals[target] then
-        originals[target] = { text = target.text, color = target.color }
+        originals[target] = { text = target.text, color = target.color, font = target.font }
     end
 end
 
@@ -157,6 +159,7 @@ local function sourceChanged(target, from)
     if type(from) ~= "table" then return false end            -- older save: no record, trust it
     if from.text ~= nil and target.text ~= from.text then return true end
     if from.color ~= nil and colorKey(target.color) ~= from.color then return true end
+    if from.font ~= nil and (target.font or "") ~= from.font then return true end
     return false
 end
 
@@ -240,6 +243,8 @@ function editor.seen(def)
             else
                 if type(e.text) == "string" then t.text = e.text end
                 if e.color ~= nil then t.color = e.color end
+                if e.font == false then t.font = nil                  -- explicitly "default"
+                elseif type(e.font) == "string" then t.font = e.font end
             end
         end
     end
@@ -258,12 +263,14 @@ local function record(s)
     local e = {}
     if type(s.target.text) == "string" then e.text = s.target.text end
     e.color = s.target.color
+    if s.target.font ~= o.font then e.font = s.target.font or false end   -- false = back to "default"
 
     local unchanged = (e.text == nil or e.text == o.text) and colorKey(e.color) == colorKey(o.color)
+        and s.target.font == o.font
     if unchanged then
         edits[s.def.id][s.key] = nil
     else
-        e.from = { text = type(o.text) == "string" and o.text or nil, color = colorKey(o.color) }
+        e.from = { text = type(o.text) == "string" and o.text or nil, color = colorKey(o.color), font = o.font or "" }
         edits[s.def.id][s.key] = e
     end
     saveEdits()
@@ -291,7 +298,9 @@ end
 -- Screen-space box of an item (labels use the real text width, not the full row).
 local function itemBox(item, last)
     if item.kind == "label" then
-        local f = fonts.get(item.fontSize * last.uiScale)
+        local t = targetsOf(last.def)[itemKey(item)]            -- carries the file's font / role, if any
+        local role = (t and t.role) or item.role or (item.id == "hint" and "hint") or "title"
+        local f = fonts.get(item.fontSize * last.uiScale, role, (t and t.font) or item.font)
         local tw = f:getWidth(item.text or "")
         return (last.width - tw) / 2, item.y, tw, item.h
     end
@@ -325,11 +334,38 @@ local function applyBuffer(which)
     record(sel)
 end
 
+-- FONT field: the choices are "default" (nil: the element's role / the project font) followed
+-- by every font under fonts/. Stepping wraps around and applies at once.
+local function fontChoices()
+    local list = { { name = nil } }
+    for _, f in ipairs(fonts.list()) do list[#list + 1] = { name = f.name, path = f.path } end
+    return list
+end
+
+local function fontIndex(list, name)
+    if name == nil then return 1 end
+    local path = fonts.resolve(name)
+    for i = 2, #list do
+        if list[i].path == path then return i end
+    end
+    return 1                                     -- a name that matches nothing counts as default
+end
+
+local function stepFont(dir)
+    if not sel then return end
+    local list = fontChoices()
+    if #list == 1 then logger("no fonts found under %s/fonts", LIB_DIR) return end
+    local i = fontIndex(list, sel.target.font) + dir
+    if i < 1 then i = #list elseif i > #list then i = 1 end
+    sel.target.font = list[i].name
+    record(sel)
+end
+
 local function resetSelected()
     if not sel then return end
     local o = originals[sel.target]
     if o then
-        sel.target.text, sel.target.color = o.text, o.color
+        sel.target.text, sel.target.color, sel.target.font = o.text, o.color, o.font
     end
     loadEdits()
     if edits[sel.def.id] then edits[sel.def.id][sel.key] = nil end
@@ -610,6 +646,7 @@ local function pageTextsSource()
                     local e = {}
                     if type(t.text) == "string" and t.text ~= d.text then e.text = t.text end
                     if toHex(t.color) ~= toHex(d.color) then e.color = t.color end
+                    if t.font ~= d.font then e.font = t.font end
                     if next(e) then
                         data[def.id] = data[def.id] or {}
                         data[def.id][key] = e
@@ -633,6 +670,7 @@ local function pageTextsSource()
                     local o = {}
                     if type(e.text) == "string" then o.text = e.text end
                     if e.color ~= nil then o.color = e.color end
+                    if type(e.font) == "string" then o.font = e.font end
                     if next(o) then
                         data[def.id] = data[def.id] or {}
                         data[def.id][key] = o
@@ -883,7 +921,12 @@ function editor.keypressed(key)
         return false
     end
 
-    if key == "tab" then field = (field == "text") and "color" or "text"
+    if key == "tab" then
+        field = (field == "text") and "color" or (field == "color") and "font" or "text"
+    elseif field == "font" and (key == "left" or key == "right" or key == "up" or key == "down") then
+        stepFont((key == "left" or key == "up") and -1 or 1)
+    elseif field == "font" and (key == "backspace" or key == "v") then
+        -- nothing to type into the FONT field
     elseif key == "backspace" then
         local s = buf[field]
         local off = require("utf8").offset(s, -1)
@@ -906,6 +949,7 @@ function editor.passesKey(key) return active and sel == nil and PASS[key] == tru
 
 function editor.textinput(text)
     if not (active and sel) then return false end
+    if field == "font" then return true end              -- picked, not typed
     if field == "color" and #buf.color >= 9 then return true end
     buf[field] = buf[field] .. text
     applyBuffer(field)
@@ -929,8 +973,13 @@ local function panel()
         p.sw[i] = { x = sx + ((i - 1) % 6) * 30, y = p.color.y + math.floor((i - 1) / 6) * (fh / 2),
                     w = 26, h = math.floor(fh / 2) - 3, value = c }
     end
-    p.h = (p.color.y + fh + 6 + lh + pad) - y
-    p.errorY = p.color.y + fh + 6
+    -- FONT row: [<] [ name ] [>]
+    local fy = p.color.y + fh + 8
+    p.fontPrev = { x = x + pad + labelW, y = fy, w = fh, h = fh }
+    p.font     = { x = p.fontPrev.x + fh + 4, y = fy, w = p.text.w - (fh + 4) * 2, h = fh }
+    p.fontNext = { x = p.font.x + p.font.w + 4, y = fy, w = fh, h = fh }
+    p.h = (fy + fh + 6 + lh + pad) - y
+    p.errorY = fy + fh + 6
     return p
 end
 
@@ -945,6 +994,8 @@ function editor.mousepressed(x, y, button)
     if sel and inside(p, x, y) then
         if inside(p.text, x, y) then field = "text"
         elseif inside(p.color, x, y) then field = "color"
+        elseif inside(p.fontPrev, x, y) then field = "font" stepFont(-1)
+        elseif inside(p.fontNext, x, y) or inside(p.font, x, y) then field = "font" stepFont(1)
         else
             for _, s in ipairs(p.sw) do
                 if inside(s, x, y) then buf.color = s.value field = "color" applyBuffer("color") break end
@@ -996,7 +1047,7 @@ function editor.hints()
                      .. "  |  - = dim " .. math.floor((def.dim or 0) * 100 + 0.5) .. "%",
                  "Ctrl+E export this page > " .. target .. "  |  Ctrl+Shift+E export all pages  |  F11 exit" }
     end
-    return { "EDITING \"" .. tostring(sel.label) .. "\":  type = change text  |  Tab = text/color field  |  Del = reset",
+    return { "EDITING \"" .. tostring(sel.label) .. "\":  type = change text  |  Tab = text / color / font field  |  < > = font  |  Del = reset",
              "Ctrl+E export this page > " .. target .. "  |  Esc = deselect  |  F11 = exit edit mode" }
 end
 
@@ -1053,6 +1104,47 @@ function editor.draw()
         end
         fieldBox(p.text, "TEXT", buf.text, field == "text")
         fieldBox(p.color, "COLOR", buf.color, field == "color")
+
+        -- FONT: [<] name [>]; the name is drawn in the font it picks, so you see it as you step.
+        do
+            local list = fontChoices()
+            local idx = fontIndex(list, sel.target.font)
+            local name = list[idx].name
+            local focused = field == "font"
+            theme.print("FONT", p.x + theme.PAD, p.font.y + (p.font.h - lh) / 2, C.muted)
+            love.graphics.setLineWidth(1)
+            love.graphics.setLineStyle("rough")
+            local function box(r, filled)
+                love.graphics.setColor(focused and 0.16 or 0.09, focused and 0.16 or 0.09, focused and 0.24 or 0.11, 1)
+                love.graphics.rectangle("fill", r.x, r.y, r.w, r.h)
+                local ec = focused and C.select or { 0.4, 0.4, 0.45, 1 }
+                love.graphics.setColor(ec[1], ec[2], ec[3], 1)
+                love.graphics.rectangle("line", r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1)
+            end
+            box(p.fontPrev) box(p.font) box(p.fontNext)
+            theme.print("<", p.fontPrev.x + (p.fontPrev.w - font:getWidth("<")) / 2, p.fontPrev.y + (p.fontPrev.h - lh) / 2, C.value)
+            theme.print(">", p.fontNext.x + (p.fontNext.w - font:getWidth(">")) / 2, p.fontNext.y + (p.fontNext.h - lh) / 2, C.value)
+
+            local count = string.format("%d/%d", idx, #list)
+            love.graphics.setScissor(p.font.x + 1, p.font.y + 1, p.font.w - 2, p.font.h - 2)
+            local countW = font:getWidth(count)
+            if name then
+                -- biggest preview size that fits the box next to the counter (bitmap-style fonts
+                -- come out much wider / taller than their size suggests)
+                local pf
+                for _, sz in ipairs({ 18, 16, 14, 12 }) do
+                    pf = fonts.get(sz, nil, name)
+                    if pf:getWidth(name) <= p.font.w - countW - 20 and pf:getHeight() <= p.font.h - 2 then break end
+                end
+                love.graphics.setFont(pf)
+                theme.print(name, p.font.x + 6, fonts.textY(p.font.y, p.font.h, pf), C.value)
+                love.graphics.setFont(font)
+            else
+                theme.print("default", p.font.x + 6, p.font.y + (p.font.h - lh) / 2, C.muted)
+            end
+            theme.print(count, p.font.x + p.font.w - countW - 6, p.font.y + (p.font.h - lh) / 2, C.muted)
+            love.graphics.setScissor()
+        end
 
         for _, s in ipairs(p.sw) do
             if s.value == "rainbow" then

@@ -32,7 +32,7 @@ function loading_screen.drawLoadingScreen(screenWidth, screenHeight, uiScale, ti
     local tr, tg, tb = page.rgb(title, r, g, b)
     local titleY = screenHeight/2 - 120 * uiScale
     love.graphics.setColor(tr/255, tg/255, tb/255)
-    love.graphics.setFont(getFont(48 * uiScale))
+    love.graphics.setFont(getFont(48 * uiScale, "title", title.font))
     love.graphics.printf(text, 0, titleY, screenWidth, "center")
     page.report({
         { kind = "label", id = "title", text = text, fontSize = 48, color = title.color,
