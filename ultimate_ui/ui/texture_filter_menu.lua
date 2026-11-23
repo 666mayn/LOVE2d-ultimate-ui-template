@@ -18,6 +18,7 @@ local helpers = require(ROOT .. ".ui.helpers")
 local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
 local rowFont            -- per-row font override for the row being drawn (entry.font), see fonts.lua
+local rowRadius          -- per-row corner radius for the row being drawn (entry.radius), see helpers.cornerRadius
 local texture_filter_manager = require(ROOT .. ".texture_filter_manager")
 local crt_manager = require(ROOT .. ".crt_manager")
 
@@ -88,9 +89,9 @@ local function drawRow(label, valueText, valueColor, centerX, y, rowWidth, rowHe
     else
         love.graphics.setColor(50/255, 50/255, 50/255, alpha)
     end
-    love.graphics.rectangle("fill", centerX - rowWidth / 2, y, rowWidth, rowHeight)
+    helpers.rect("fill", centerX - rowWidth / 2, y, rowWidth, rowHeight, helpers.cornerRadius(rowRadius, uiScale, rowWidth, rowHeight))
     love.graphics.setColor(highlight and 1 or 100/255, highlight and 1 or 100/255, highlight and 1 or 100/255, alpha)
-    love.graphics.rectangle("line", centerX - rowWidth / 2, y, rowWidth, rowHeight)
+    helpers.rect("line", centerX - rowWidth / 2, y, rowWidth, rowHeight, helpers.cornerRadius(rowRadius, uiScale, rowWidth, rowHeight))
 
     local fontSize = math.min(24 * uiScale, rowHeight * 0.45)
     local pad = 24 * uiScale
@@ -114,8 +115,8 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
 
     local rows, rowHeight, rowWidth, ys, fit, bottomY = layout(screenHeight, uiScale)
 
-    local titleY = ys[1] - 90 * uiScale
     local title = page.label("title")
+    local titleY = ys[1] - 90 * uiScale + page.dy(title, uiScale)
     local titleText = widgets.resolveText(title.text)
     local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
@@ -137,13 +138,14 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
     local baseDelay = 0.15
     local stagger = 0.04
     for i, row in ipairs(rows) do
-        local y = ys[i]
+        local y = ys[i] + page.rowDy(row.key, uiScale)
         local hovered = mouseX and mouseY
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
         local scale, alpha = helpers.popIn(t, baseDelay + (i - 1) * stagger, 0.35)
         local entry = page.item(row.key, row.label)
         rowFont = entry.font
+        rowRadius = entry.radius
         local rowText = widgets.resolveText(entry.text)
         local rr, rg, rb = page.rgb(entry, r, g, b)
         reported[#reported + 1] = { kind = "button", id = "rows", key = row.key, index = i, text = rowText,
@@ -167,14 +169,14 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
                     centerX, y, rowWidth, rowHeight, isSelected, hovered, uiScale, rr, rg, rb, alpha)
             else
                 helpers.drawScaledButton(rowText, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, false, uiScale * fit, rr, rg, rb, alpha, entry.font)
+                    isSelected, hovered, false, uiScale * fit, rr, rg, rb, alpha, entry.font, entry.radius)
             end
         end)
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
-    local hintY = bottomY + 24 * uiScale
     local hint = page.label("hint")
+    local hintY = bottomY + 24 * uiScale + page.dy(hint, uiScale)
     local hintText = widgets.resolveText(hint.text)
     local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
@@ -197,7 +199,7 @@ function texture_filter_menu.handleTextureFilterMenuClick(x, y, screenWidth, scr
     local rows, rowHeight, rowWidth, ys = layout(screenHeight, uiScale)
     local centerX = math.floor(screenWidth / 2)
     for i, row in ipairs(rows) do
-        local ry = ys[i]
+        local ry = ys[i] + page.rowDy(row.key, uiScale)
         if x >= centerX - rowWidth / 2 and x <= centerX + rowWidth / 2 and y >= ry and y <= ry + rowHeight then
             if row.type == "action" and row.id == "back" then
                 return { action = "back" }

@@ -30,7 +30,7 @@ function loading_screen.drawLoadingScreen(screenWidth, screenHeight, uiScale, ti
     local text = widgets.resolveText(title.text)
     if title.text == DEFAULT_LABEL and label then text = label end
     local tr, tg, tb = page.rgb(title, r, g, b)
-    local titleY = screenHeight/2 - 120 * uiScale
+    local titleY = screenHeight/2 - 120 * uiScale + page.dy(title, uiScale)
     love.graphics.setColor(tr/255, tg/255, tb/255)
     love.graphics.setFont(getFont(48 * uiScale, "title", title.font))
     love.graphics.printf(text, 0, titleY, screenWidth, "center")

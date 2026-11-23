@@ -15,6 +15,7 @@ local helpers = require(ROOT .. ".ui.helpers")
 local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
 local rowFont            -- per-row font override for the row being drawn (entry.font), see fonts.lua
+local rowRadius          -- per-row corner radius for the row being drawn (entry.radius), see helpers.cornerRadius
 
 -- The page's texts as data, so the sandbox editor (F11) can edit them. Row labels are
 -- keyed by the row id (an action name), so a saved edit follows its row.
@@ -65,9 +66,9 @@ local function drawRow(label, valueText, centerX, y, rowWidth, rowHeight, isSele
     else
         love.graphics.setColor(50/255, 50/255, 50/255, alpha)
     end
-    love.graphics.rectangle("fill", centerX - rowWidth / 2, y, rowWidth, rowHeight)
+    helpers.rect("fill", centerX - rowWidth / 2, y, rowWidth, rowHeight, helpers.cornerRadius(rowRadius, uiScale, rowWidth, rowHeight))
     love.graphics.setColor(highlight and 1 or 100/255, highlight and 1 or 100/255, highlight and 1 or 100/255, alpha)
-    love.graphics.rectangle("line", centerX - rowWidth / 2, y, rowWidth, rowHeight)
+    helpers.rect("line", centerX - rowWidth / 2, y, rowWidth, rowHeight, helpers.cornerRadius(rowRadius, uiScale, rowWidth, rowHeight))
 
     local pad = 24 * uiScale
     love.graphics.setColor(r/255, g/255, b/255, alpha)
@@ -90,8 +91,8 @@ function keyboard_menu.drawKeyboardMenu(screenWidth, screenHeight, selection, mo
     -- Positioned relative to startY (like the other settings screens)
     -- rather than a fixed offset, so the title stays clear of the rows
     -- as more keybind actions get added.
-    local titleY = startY - 90 * uiScale
     local title = page.label("title")
+    local titleY = startY - 90 * uiScale + page.dy(title, uiScale)
     local titleText = widgets.resolveText(title.text)
     local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
@@ -110,13 +111,14 @@ function keyboard_menu.drawKeyboardMenu(screenWidth, screenHeight, selection, mo
     local baseDelay = 0.15
     local stagger = 0.04
     for i, row in ipairs(rows) do
-        local y = rowY(startY, rowHeight, rowSpacing, i)
+        local y = rowY(startY, rowHeight, rowSpacing, i) + page.rowDy(row.id, uiScale)
         local hovered = mouseX and mouseY
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
         local scale, alpha = helpers.popIn(t, baseDelay + (i - 1) * stagger, 0.35)
         local entry = page.item(row.id, row.label)
         rowFont = entry.font
+        rowRadius = entry.radius
         local rowText = widgets.resolveText(entry.text)
         local rr, rg, rb = page.rgb(entry, r, g, b)
         reported[#reported + 1] = { kind = "button", id = "rows", key = row.id, index = i, text = rowText,
@@ -133,14 +135,14 @@ function keyboard_menu.drawKeyboardMenu(screenWidth, screenHeight, selection, mo
 
             elseif row.type == "action" then
                 helpers.drawScaledButton(rowText, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, false, uiScale, rr, rg, rb, alpha, entry.font)
+                    isSelected, hovered, false, uiScale, rr, rg, rb, alpha, entry.font, entry.radius)
             end
         end)
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
-    local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1)
     local hint = page.label("hint")
+    local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1) + page.dy(hint, uiScale)
     local hintText = widgets.resolveText(hint.text)
     local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
@@ -165,7 +167,7 @@ function keyboard_menu.handleKeyboardMenuClick(x, y, screenWidth, screenHeight, 
     local centerX = math.floor(screenWidth / 2)
 
     for i, row in ipairs(rows) do
-        local ry = rowY(startY, rowHeight, rowSpacing, i)
+        local ry = rowY(startY, rowHeight, rowSpacing, i) + page.rowDy(row.id, uiScale)
         if x >= centerX - rowWidth / 2 and x <= centerX + rowWidth / 2 and y >= ry and y <= ry + rowHeight then
             if row.type == "keybind" then
                 return { action = "rebind", id = row.id }

@@ -241,7 +241,8 @@ function sandbox.attach()
     local function wipeSaves()
         if clock > wipeArmedUntil then
             wipeArmedUntil = clock + 3
-            return log("press %s again within 3s to wipe saved settings", string.upper(config.keys.wipe[1]))
+            return log("RESET EVERYTHING? press %s again within 3s: wipes saved settings AND all F11 editor edits and restarts at the placeholder game. exports/ is NOT touched",
+                string.upper(config.keys.wipe[1]))
         end
         wipeArmedUntil = 0
         for _, file in ipairs(config.saveFiles) do
@@ -253,7 +254,10 @@ function sandbox.attach()
         keybinds.init()
         controller.init()
         other_settings.init()
-        log("saved settings wiped -- everything back to defaults")
+        log("saved settings + editor edits wiped -- restarting at the placeholder defaults (exports/ untouched)")
+        -- The editor changes the loaded screens in memory, so a clean restart is what puts them
+        -- back to what the files say. The session (window size, open panel) is kept.
+        restart("reset everything")
     end
 
     local ACTIONS = {
@@ -367,7 +371,7 @@ function sandbox.attach()
             kv(keyName("restart"), "restart")
             kv(keyName("reload"), "auto-reload")
             kv(keyName("loading"), "loading preview")
-            kv(keyName("wipe"), "wipe saves (twice)")
+            kv(keyName("wipe"), "RESET everything (twice)")
             kv(keyName("saveDir"), "save folder")
             kv(keyName("hide"), "hide overlay")
             kv(keyName("shot"), "screenshot")
@@ -376,6 +380,7 @@ function sandbox.attach()
             kv(keyName("edit"), "edit mode")
             kv("B", "background")
             kv("[ ]", "blur")
+            kv("Shift+F", "all fonts")
             kv("- =", "dim")
             kv("Ctrl+E", "export page")
             kv("Ctrl+Shift+E", "export all")

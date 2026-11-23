@@ -78,6 +78,8 @@ Open it with **F7** (loading preview), or Ctrl+click PLAY.
 | Change its text | Just type. Backspace deletes, Ctrl+V pastes |
 | Change its color | **Tab** to the COLOR field and type `#RRGGBB` or `rainbow`, or click a swatch |
 | Change its font | **Tab** twice to the FONT field (or click it), then click `<` / `>` or press **Left / Right**. `default` = its role / the project font |
+| Round its corners | Buttons only: **Tab** three times to the ROUND slider (or click it), then drag, click the bar, or press **Left / Right** (**Shift** = 5 at a time). **Backspace** (or clicking the number) = back to the project default |
+| Change EVERY font at once | With nothing selected, **Shift+F** steps the whole project through each font in `fonts/` and back to `off`; **Ctrl+Shift+F** steps backwards. It overrides per-element and role fonts without deleting them, so `off` brings them all back |
 | Reset it | **Del** |
 | Deselect | **Esc** (while something is selected) |
 | Pause / walk the menu | With nothing selected, **Esc**, the arrow keys and **Enter** still go to the game, so you can pause, move through the pause menu and resume without leaving edit mode |

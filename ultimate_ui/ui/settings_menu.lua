@@ -65,8 +65,8 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
     -- Title sits a fixed distance above the first button, so the gap stays
     -- consistent no matter how many categories are added. Change the 110
     -- below to move 'SETTINGS' up/down.
-    local titleY = startY - 110 * uiScale
     local title = page.label("title")
+    local titleY = startY - 110 * uiScale + page.dy(title, uiScale)
     local titleText = widgets.resolveText(title.text)
     local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
@@ -83,8 +83,8 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
 
     local hovers = {}
     local anyHovered = false
-    for i in ipairs(CATEGORIES) do
-        local y = buttonY(startY, buttonHeight, buttonSpacing, i, extraGap)
+    for i, category in ipairs(CATEGORIES) do
+        local y = buttonY(startY, buttonHeight, buttonSpacing, i, extraGap) + page.rowDy(category.action, uiScale)
         local hovered = mouseX and mouseY
             and mouseX >= centerX - buttonWidth/2 and mouseX <= centerX + buttonWidth/2
             and mouseY >= y and mouseY <= y + buttonHeight
@@ -95,12 +95,12 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
     local baseDelay = 0.18
     local stagger = 0.08
     for i, category in ipairs(CATEGORIES) do
-        local y = buttonY(startY, buttonHeight, buttonSpacing, i, extraGap)
+        local y = buttonY(startY, buttonHeight, buttonSpacing, i, extraGap) + page.rowDy(category.action, uiScale)
         local entry = entryOf(category)
         local text = widgets.resolveText(entry.text)
         local br, bg, bb = page.rgb(entry, r, g, b)
         helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight,
-            selection == i, hovers[i], anyHovered, uiScale, br, bg, bb, t, baseDelay + (i - 1) * stagger, entry.font)
+            selection == i, hovers[i], anyHovered, uiScale, br, bg, bb, t, baseDelay + (i - 1) * stagger, entry.font, entry.radius)
         reported[#reported + 1] = { kind = "button", id = "rows", key = category.action, index = i,
             text = text, color = entry.color, x = centerX - buttonWidth / 2, y = y, w = buttonWidth, h = buttonHeight }
     end
@@ -112,7 +112,7 @@ end
 function settings_menu.handleSettingsMenuClick(x, y, screenWidth, screenHeight, uiScale)
     local buttonWidth, buttonHeight, buttonSpacing, centerX, startY, extraGap = layout(screenWidth, screenHeight, uiScale)
     for i, category in ipairs(CATEGORIES) do
-        local buttonYPos = buttonY(startY, buttonHeight, buttonSpacing, i, extraGap)
+        local buttonYPos = buttonY(startY, buttonHeight, buttonSpacing, i, extraGap) + page.rowDy(category.action, uiScale)
         if x >= centerX - buttonWidth/2 and x <= centerX + buttonWidth/2
             and y >= buttonYPos and y <= buttonYPos + buttonHeight then
             return category.action
