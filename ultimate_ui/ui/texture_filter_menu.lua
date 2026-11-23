@@ -18,6 +18,7 @@ local helpers = require(ROOT .. ".ui.helpers")
 local widgets = require(ROOT .. ".ui.widgets")
 local getFont = helpers.getFont
 local rowFont            -- per-row font override for the row being drawn (entry.font), see fonts.lua
+local rowRadius          -- per-row corner radius for the row being drawn (entry.radius), see helpers.cornerRadius
 local texture_filter_manager = require(ROOT .. ".texture_filter_manager")
 local crt_manager = require(ROOT .. ".crt_manager")
 
@@ -88,9 +89,9 @@ local function drawRow(label, valueText, valueColor, centerX, y, rowWidth, rowHe
     else
         love.graphics.setColor(50/255, 50/255, 50/255, alpha)
     end
-    love.graphics.rectangle("fill", centerX - rowWidth / 2, y, rowWidth, rowHeight)
+    helpers.rect("fill", centerX - rowWidth / 2, y, rowWidth, rowHeight, helpers.cornerRadius(rowRadius, uiScale, rowWidth, rowHeight))
     love.graphics.setColor(highlight and 1 or 100/255, highlight and 1 or 100/255, highlight and 1 or 100/255, alpha)
-    love.graphics.rectangle("line", centerX - rowWidth / 2, y, rowWidth, rowHeight)
+    helpers.rect("line", centerX - rowWidth / 2, y, rowWidth, rowHeight, helpers.cornerRadius(rowRadius, uiScale, rowWidth, rowHeight))
 
     local fontSize = math.min(24 * uiScale, rowHeight * 0.45)
     local pad = 24 * uiScale
@@ -144,6 +145,7 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
         local scale, alpha = helpers.popIn(t, baseDelay + (i - 1) * stagger, 0.35)
         local entry = page.item(row.key, row.label)
         rowFont = entry.font
+        rowRadius = entry.radius
         local rowText = widgets.resolveText(entry.text)
         local rr, rg, rb = page.rgb(entry, r, g, b)
         reported[#reported + 1] = { kind = "button", id = "rows", key = row.key, index = i, text = rowText,
@@ -167,7 +169,7 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
                     centerX, y, rowWidth, rowHeight, isSelected, hovered, uiScale, rr, rg, rb, alpha)
             else
                 helpers.drawScaledButton(rowText, centerX, y, rowWidth, rowHeight,
-                    isSelected, hovered, false, uiScale * fit, rr, rg, rb, alpha, entry.font)
+                    isSelected, hovered, false, uiScale * fit, rr, rg, rb, alpha, entry.font, entry.radius)
             end
         end)
     end

@@ -7,7 +7,7 @@
 local serialize = {}
 
 -- Keys listed here come first (in this order) so output reads naturally.
-local ORDER = { "id", "file", "api", "type", "text", "action", "fontSize", "font", "role", "color", "size", "spacing",
+local ORDER = { "id", "file", "api", "type", "text", "action", "fontSize", "font", "role", "radius", "color", "size", "spacing",
                 "relativeTo", "offset", "showIf", "gapBefore", "pop", "delay", "stagger", "duration",
                 "dim", "background", "image", "blur", "items", "widgets" }
 local rank = {}

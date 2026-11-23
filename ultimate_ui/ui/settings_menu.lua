@@ -100,7 +100,7 @@ function settings_menu.drawSettingsMenu(screenWidth, screenHeight, selection, mo
         local text = widgets.resolveText(entry.text)
         local br, bg, bb = page.rgb(entry, r, g, b)
         helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight,
-            selection == i, hovers[i], anyHovered, uiScale, br, bg, bb, t, baseDelay + (i - 1) * stagger, entry.font)
+            selection == i, hovers[i], anyHovered, uiScale, br, bg, bb, t, baseDelay + (i - 1) * stagger, entry.font, entry.radius)
         reported[#reported + 1] = { kind = "button", id = "rows", key = category.action, index = i,
             text = text, color = entry.color, x = centerX - buttonWidth / 2, y = y, w = buttonWidth, h = buttonHeight }
     end

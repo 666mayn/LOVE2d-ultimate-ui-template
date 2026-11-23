@@ -22,6 +22,11 @@
 --   "stat", "hud" (-> stat), "body". A role with no font of its own uses the project font.
 --   `fonts.setRole("button", "name")` / `fonts.setDefault("name")` change them live from code.
 --
+--   ALL AT ONCE (override): fonts.setUniform("pixeloid_sans") makes EVERY piece of text that goes through
+--   fonts.get use that one font, beating element fonts and roles, until fonts.setUniform(nil). The sandbox
+--   editor's Shift+F cycles it and exports it as ui/all_fonts.lua (`return nil` = off); a plain `love .`
+--   reads that file at startup. It is an override, so nothing in your screens is overwritten.
+--
 -- Fonts keep their own filter; they are not tied to texture_filter_manager.
 
 local ROOT = (...):match("^(.*)%.[^.]+$")
@@ -38,6 +43,8 @@ local lookupTable              -- lower-case name -> entry
 local sizeCache = {}           -- [path][size] = Font
 local runtimeDefault           -- set by fonts.setDefault
 local runtimeRoles = {}        -- set by fonts.setRole  (role -> name)
+local runtimeUniform           -- set by fonts.setUniform: a name, false = "off" (ignore ui/all_fonts.lua), nil = use the file
+local uniformFile              -- contents of ui/all_fonts.lua, loaded once (false = none)
 local warned = {}
 
 local function isFontFile(name)
@@ -210,6 +217,40 @@ function fonts.setDefault(name) runtimeDefault = name end
 function fonts.setRole(role, name) runtimeRoles[role] = name end
 
 -- ---------------------------------------------------------------------------
+-- The "all fonts" override
+-- ---------------------------------------------------------------------------
+-- Name of the font that overrides EVERYTHING, or nil when there is none. Order: fonts.setUniform()
+-- (false = explicitly off), then ui/all_fonts.lua ({ font = "name" } or `return nil`).
+function fonts.uniform()
+    if runtimeUniform ~= nil then return runtimeUniform or nil end
+    if uniformFile == nil then
+        uniformFile = false
+        local ok, found = pcall(require, ROOT .. ".ui.all_fonts")
+        if ok and type(found) == "table" and type(found.font) == "string" and found.font ~= "" then
+            uniformFile = found.font
+        elseif not ok and not tostring(found):find("not found", 1, true) then
+            print("[ultimate_ui] ui/all_fonts.lua could not be loaded: " .. tostring(found))
+        end
+    end
+    return uniformFile or nil
+end
+
+-- Make every font in the project this one:  fonts.setUniform("pixeloid_sans")
+--   fonts.setUniform(nil)    back to what ui/all_fonts.lua says (normally: no override)
+--   fonts.setUniform(false)  no override, even if ui/all_fonts.lua names one
+function fonts.setUniform(name) runtimeUniform = name end
+
+local function uniformPath()
+    local name = fonts.uniform()
+    if not name then return nil end
+    local p = fonts.resolve(name)
+    if not p then
+        warnOnce("all-fonts override \"%s\" was not found under %s/ (see UI.fonts.list()) -- ignoring it", tostring(name), FONT_DIR)
+    end
+    return p
+end
+
+-- ---------------------------------------------------------------------------
 -- Font objects
 -- ---------------------------------------------------------------------------
 local meta = setmetatable({}, { __mode = "k" })   -- Font -> { path =, size = }  (for centering, below)
@@ -266,8 +307,9 @@ end
 --   fonts.get(24, "button")          the "button" role's font        (config.fontRoles)
 --   fonts.get(24, nil, "fibberish")  a specific font name            (wins over the role)
 -- A name given as `face` that is not a known role is tried as a font name, so
--- fonts.get(24, "fibberish") also works.
-function fonts.get(requestedSize, face, explicit)
+-- fonts.get(24, "fibberish") also works. While fonts.setUniform() / ui/all_fonts.lua is on, every
+-- call returns THAT font unless `ignoreUniform` is true (the sandbox's font preview uses that).
+function fonts.get(requestedSize, face, explicit, ignoreUniform)
     if not registry then build() end
     local path
     if explicit then
@@ -285,6 +327,7 @@ function fonts.get(requestedSize, face, explicit)
         end
     end
     path = path or fonts.path()
+    if not ignoreUniform then path = uniformPath() or path end     -- the all-fonts override beats everything
     return cached(path, snap(requestedSize))
 end
 

@@ -30,8 +30,13 @@ All of these work (case does not matter) anywhere a font name is accepted:
 4. **From code** -- `UI.fonts.setDefault("name")`, `UI.fonts.setRole("button", "name")`, and
    `love.graphics.setFont(UI.ui.getFont(24, "button"))` / `getFont(24, nil, "fibberish")` for your own text.
 
+5. **Every font at once (override)** -- in the sandbox editor press **Shift+F** (nothing selected) to step the whole project
+   through every font, then **Ctrl+E** to export it as `ui/all_fonts.lua`. While that file names a font, ALL text uses it, beating
+   element fonts and roles; `return nil` turns it off. From code: `UI.fonts.setUniform("name")` (`nil` = back to the file,
+   `false` = off).
+
 Most specific wins: element `font` > role > project font > first font found > LOVE's built-in font.
-An unknown name prints one warning (console + sandbox log) and falls back instead of crashing.
+The all-fonts override (5) beats all of that while it is on. An unknown name prints one warning (console + sandbox log) and falls back instead of crashing.
 
 * Pixel fonts look best at the sizes in `ultimate_ui/fonts.lua` (`availableFontSizes`); edit that list for yours.
   Bitmap-style fonts (PlayerSansMono 8x8 / 8x13, ...) are crispest at multiples of their native size.

@@ -66,6 +66,10 @@
 -- With neither, the element uses its role's font, else the project font (config.font).
 -- See ultimate_ui/fonts.lua.
 --
+-- CORNERS: a button (a stack, or one stack item) may carry  radius = 12  -- rounded corners, in 1080p
+-- reference pixels like every other size here (0 / nil = square). An item's radius beats its stack's,
+-- which beats config.buttonRadius. The F11 editor's ROUND slider sets it. See ui/helpers.lua.
+--
 -- Colors are "rainbow" (the animated default) or { r, g, b } with each 0..1.
 
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
@@ -169,6 +173,7 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
                         x = centerX - bw / 2, y = y, w = bw, h = bh, cx = centerX,
                         color = it.color or w.color, index = i,
                         font = it.font or w.font,
+                        radius = it.radius or w.radius,
                         popDelay = (pop.delay or 0) + (i - 1) * (pop.stagger or 0),
                         popDuration = pop.duration or 0.4,
                     }
@@ -277,7 +282,7 @@ function widgets.draw(def, screenWidth, screenHeight, selection, mouseX, mouseY,
         else
             helpers.withPop(item.cx, item.y + item.h / 2, scale, alpha, function()
                 helpers.drawScaledButton(item.text, item.cx, item.y, item.w, item.h,
-                    selection == item.index, item.hovered, anyHovered, uiScale, r, g, b, alpha, item.font)
+                    selection == item.index, item.hovered, anyHovered, uiScale, r, g, b, alpha, item.font, item.radius)
             end)
         end
     end
@@ -370,7 +375,7 @@ end
 -- Ctrl+E (or Ctrl+Shift+E) writes them ALL to exports/<lib>/ui/page_texts.lua. Drop that file
 -- over ui/page_texts.lua and every text page picks the texts up at startup, with no editor.
 
--- ui/page_texts.lua, loaded once: { [screenId] = { [key] = { text =, color = } } }.
+-- ui/page_texts.lua, loaded once: { [screenId] = { [key] = { text =, color =, font =, radius = } } }.
 -- It is optional; a missing file (or one with an error, which is printed) means "no overrides".
 local pageTexts
 local function loadPageTexts()
@@ -393,13 +398,14 @@ function widgets.pageTexts() return loadPageTexts() end
 widgets.defaults = setmetatable({}, { __mode = "k" })
 
 local function giveOverrides(def, key, target)
-    widgets.defaults[target] = { text = target.text, color = target.color, font = target.font }
+    widgets.defaults[target] = { text = target.text, color = target.color, font = target.font, radius = target.radius }
     local mine = loadPageTexts()[def.id]
     local o = mine and mine[key]
     if type(o) == "table" then
         if type(o.text) == "string" then target.text = o.text end
         if o.color ~= nil then target.color = o.color end
         if type(o.font) == "string" then target.font = o.font end
+        if type(o.radius) == "number" then target.radius = o.radius end
     end
 end
 

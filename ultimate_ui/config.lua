@@ -33,6 +33,13 @@ local config = {
     -- 3) One single element: put  font = "fibberish"  on that widget / stack item in its ui/*.lua
     --    screen file (see ui/widgets.lua). It beats its role and the project font.
 
+    -- BUTTON CORNERS. Rounded corners for every button / row in the menus, in 1080p reference pixels
+    -- (scaled with the window like every other size). 0 = square. A single button can override it with
+    -- radius = 12 on its stack item in a ui/*.lua screen (or in ui/page_texts.lua for the hand-coded
+    -- pages); the F11 editor's ROUND slider writes that for you. Anything above half the button's
+    -- height just makes a pill.
+    buttonRadius = 0,
+
     -- Optional startup videos (.ogv) played back to back before the main menu.
     -- Leave empty to skip the intro entirely.
     introVideos = {},          -- e.g. { "intros/intro1.ogv", "intros/intro2.ogv" }

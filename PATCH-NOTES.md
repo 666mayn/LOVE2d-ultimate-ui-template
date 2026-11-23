@@ -7,6 +7,47 @@ This file is the running record of what changed and why, so work can pick up whe
 
 ---
 
+## Patch: button corner radius (ROUND slider) + Shift+F "change every font"
+
+**New in the F11 editor panel (now 600px wide, so long font names never touch the `n/N` counter; the name is also clipped before it)**
+
+* **ROUND slider** under FONT, for buttons only (titles / stats have no corners, so the row is hidden for them). Drag it, click the
+  bar, or Tab to it and use Left / Right (Shift = 5 at a time). Range 0..40 in 1080p reference pixels (scaled with the window like every
+  other size; a value above half the button's height just makes a pill). Amber = you set it, grey `default` = the project default.
+  Backspace or clicking the number puts it back to the default; Del resets the whole element as before.
+  The button changes live while you drag. Tab order is now TEXT -> COLOR -> FONT -> ROUND.
+* **Shift+F** (edit mode, nothing selected) changes EVERY font in the project at once: steps `off` -> each font in `fonts/` -> `off`;
+  **Ctrl+Shift+F** steps backwards. It is an override layer, not a rewrite: per-element fonts and roles are left alone and come back
+  when it is `off`. While it is on, the FONT row's preview still shows the font being picked, and the panel says ALL FONTS is on.
+
+**How it is stored / exported**
+
+* `radius = 12` is a plain field on a stack item (or stack) in the `ui/*.lua` screens and on a row in `ui/page_texts.lua`, next to `font`.
+  It survives restarts like text / color / font edits and Ctrl+E exports it. Resolution: item `radius` > stack `radius` >
+  `config.buttonRadius` (new, default 0 = square). `0` is an explicit "square", `nil` means "use the default".
+* The Shift+F choice is remembered in the save folder and exported by Ctrl+E / Ctrl+Shift+E as the new `ui/all_fonts.lua`
+  (`return { font = "name" }`, or `return nil` for off). `fonts.lua` reads it at startup, so plain `love .` shows the same fonts.
+  API: `fonts.setUniform(name | nil | false)`, `fonts.uniform()`, and `fonts.get(size, role, name, ignoreUniform)`.
+
+| File | Change |
+| --- | --- |
+| `ultimate_ui/ui/helpers.lua` | `helpers.cornerRadius`, `helpers.rect`, `helpers.MAX_RADIUS`; `drawScaledButton` / `drawPoppedButton` take a trailing `radius`. |
+| `ultimate_ui/ui/widgets.lua` | `radius` on stack items, passed to the button draw; `page_texts.lua` overrides accept `radius`. |
+| `ultimate_ui/ui/{keyboard,controller,other_settings,texture_filter}_menu.lua`, `settings_menu.lua` | Row boxes and buttons use the row's radius. |
+| `ultimate_ui/fonts.lua`, `ultimate_ui/ui/all_fonts.lua` (new) | All-fonts override + its startup file. |
+| `ultimate_ui/config.lua` | `buttonRadius`. |
+| `ultimate_ui/sandbox/editor.lua` | ROUND slider (drag / keys / persistence / export), Shift+F, wider panel, `all_fonts.lua` export, hint lines. |
+| `ultimate_ui/sandbox/{serialize,init}.lua` | `radius` sorted next to `font`; F1 panel lists Shift+F. |
+| `README.md`, `ultimate_ui/sandbox/README.md`, `ultimate_ui/fonts/README.md` | Documented. |
+
+**Verification:** run in a stubbed-LOVE harness (LuaTeX's Lua, no real LOVE available here) against the real folder tree: slider keys,
+mouse drag, clamping, default / explicit-zero handling, rounded vs square draw calls, Tab order (ROUND skipped for labels),
+Shift+F / Ctrl+Shift+F cycling and its override of roles and element fonts, persistence + restore after a restart, Del reset, and the
+exports (`main_menu.lua` keeps `radius`, `all_fonts.lua` written). **Not run in real LOVE**: please check the slider feel and the
+panel width on your screen.
+
+---
+
 ## Patch: nested font folders, project-wide font, per-element fonts
 
 **Headline:** fonts can now live in nested folders, and there are **3 new font families** to choose from (`fibberish`,

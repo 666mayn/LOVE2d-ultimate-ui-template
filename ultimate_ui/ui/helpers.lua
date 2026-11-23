@@ -5,6 +5,7 @@
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
 local fonts = require(ROOT .. ".fonts")
 local background = require(ROOT .. ".ui.background")
+local config = require(ROOT .. ".config")
 
 local helpers = {}
 
@@ -74,20 +75,44 @@ end
 -- Fonts place their letters differently inside the line box, so this measures instead of guessing.
 helpers.textY = function(boxY, boxH) return fonts.textY(boxY, boxH, love.graphics.getFont()) end
 
+-- Corner radius of a button / row box, in screen pixels. `radius` is in 1080p reference pixels (the
+-- unit every other size in the template uses) and is scaled by uiScale. nil = the project default,
+-- config.buttonRadius, else 0 (square corners). Never more than half the shorter side, so a big
+-- number simply gives a pill shape instead of breaking the corners.
+helpers.MAX_RADIUS = 40
+function helpers.cornerRadius(radius, uiScale, boxW, boxH)
+    radius = radius or config.buttonRadius or 0
+    if type(radius) ~= "number" or radius <= 0 then return 0 end
+    local r = math.floor(radius * (uiScale or 1) + 0.5)
+    return math.max(0, math.min(r, math.floor(math.min(boxW, boxH) / 2)))
+end
+
+-- love.graphics.rectangle with optional rounded corners (radius in screen pixels, 0 = square).
+function helpers.rect(mode, x, y, w, h, radius)
+    if radius and radius > 0 then
+        love.graphics.rectangle(mode, x, y, w, h, radius, radius, 12)
+    else
+        love.graphics.rectangle(mode, x, y, w, h)
+    end
+end
+
 -- Helper for drawing scaled buttons
 -- `fontName` (optional) picks this one button's font; otherwise the "button" role / project font is used.
-function helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha, fontName)
+-- `radius` (optional, 1080p reference pixels) rounds this one button's corners; otherwise
+-- config.buttonRadius (default 0 = square).
+function helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha, fontName, radius)
     alpha = alpha or 1
+    local rad = helpers.cornerRadius(radius, uiScale, buttonWidth, buttonHeight)
     if isHovered or (isSelected and not anyHovered) then
         love.graphics.setColor(80/255, 80/255, 80/255, alpha)
-        love.graphics.rectangle("fill", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight)
+        helpers.rect("fill", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight, rad)
         love.graphics.setColor(1, 1, 1, alpha)
-        love.graphics.rectangle("line", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight)
+        helpers.rect("line", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight, rad)
     else
         love.graphics.setColor(50/255, 50/255, 50/255, alpha)
-        love.graphics.rectangle("fill", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight)
+        helpers.rect("fill", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight, rad)
         love.graphics.setColor(100/255, 100/255, 100/255, alpha)
-        love.graphics.rectangle("line", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight)
+        helpers.rect("line", centerX - buttonWidth / 2, y, buttonWidth, buttonHeight, rad)
     end
     love.graphics.setColor(r/255, g/255, b/255, alpha)
 
@@ -127,10 +152,10 @@ end
 
 -- Draws a button scaled+faded in around its own center using popIn(), rather
 -- than the whole screen's origin, so it pops in place instead of sliding.
-function helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, t, delay, fontName)
+function helpers.drawPoppedButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, t, delay, fontName, radius)
     local scale, alpha = helpers.popIn(t, delay, 0.4)
     helpers.withPop(centerX, y + buttonHeight / 2, scale, alpha, function()
-        helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha, fontName)
+        helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha, fontName, radius)
     end)
 end
 

@@ -6,9 +6,9 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 
 ## Screenshots
 
-| Live F11 Font Editor (per-element font picker) | |
-| :---: | :---: |
-| ![F11 font editor showing the new font families](reference_screenshots/ui_editor_font_editor.png) | |
+| Live F11 Font Editor (per-element font picker) | Button Roundness (in-game result) | Button Roundness (ROUND slider in the F11 editor) |
+| :---: | :---: | :---: |
+| ![F11 font editor showing the new font families](reference_screenshots/ui_editor_font_editor.png) | ![Rounded buttons in the game](reference_screenshots/ui_editor_button_roundness_update_1.png) | ![F11 editor panel with the ROUND corner-radius slider](reference_screenshots/ui_editor_button_roundness_update_2.png) |
 
 | Live F11 UI Editor (with F1 help panel) | Live F11 UI Editor (editing text and color) |
 | :---: | :---: |
@@ -16,7 +16,7 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 
 | Clean Exported Menu | F1 Helper Menu |
 | :---: | :---: |
-| ![Main menu with the editor closed](reference_screenshots/ui_editor_closed_2.png) | ![F1 helper menu panel](reference_screenshots/ui_editor_helper_widget.png) |
+| ![Main menu with the editor closed](reference_screenshots/ui_editor_closed_2.png) | ![F1 helper menu panel](reference_screenshots/ui_editor_helper_widget_update.png) |
 
 | Keyboard Rebinding | Controller Rebinding |
 | :---: | :---: |
@@ -55,7 +55,7 @@ The panel is a cheat sheet and a live readout in one:
 | **State** | Current screen, menu cursor row, whether a rebind is waiting, window size and UI scale, active texture filter and CRT filter, connected gamepads, mouse position, FPS, and how many `.lua` files auto-reload is watching |
 | **Jump to screen** | With the panel open, press `1`-`8` to go straight to Main, Pause, Settings, Keyboard, Controller, Other, Texture, or back into the Game, with no clicking through menus |
 | **Hotkeys** | `F2` window size presets, `F3` virtual gamepad, `F4` event log, `F5` restart, `F6` auto-reload, `F7` loading-screen preview, `F8` wipe saves (press twice), `F9` open the save folder, `F10` hide the overlay, `F12` clean screenshot |
-| **Editor** | `F11` edit mode, `B` background, `[` `]` blur, `-` `=` dim. `Ctrl+E` exports the current page and `Ctrl+Shift+E` exports all pages, **with edit mode on or off**. Every page's titles and buttons are editable; Settings / Keyboard / Controller / Other / Textures / Loading export to `ui/page_texts.lua`, and the shared background to `ui/menu_background.lua` |
+| **Editor** | `F11` edit mode, `B` background, `[` `]` blur, `-` `=` dim, `Shift+F` one font for everything. Click a button and the editor panel has a TEXT, COLOR, FONT and **ROUND** (corner radius) row. `Ctrl+E` exports the current page and `Ctrl+Shift+E` exports all pages, **with edit mode on or off**. Every page's titles and buttons are editable; Settings / Keyboard / Controller / Other / Textures / Loading export to `ui/page_texts.lua`, the shared background to `ui/menu_background.lua`, and the all-fonts choice to `ui/all_fonts.lua` |
 
 A few notes:
 
