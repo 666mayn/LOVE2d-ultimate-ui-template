@@ -6,10 +6,11 @@
 --   F11            edit mode on/off
 --   click          select a widget            Esc   deselect (nothing selected: Esc/arrows/Enter go to the game)
 --   Ctrl+click     press the button (uses the game, no editing)
---   type           change the text            Tab   switch TEXT -> COLOR -> FONT -> ROUND
+--   type           change the text            Tab   switch TEXT -> COLOR -> FONT -> ROUND -> MOVE
 --   COLOR field    #RRGGBB, or "rainbow"      Del   reset widget to original
 --   FONT field     < > (click, or Left/Right when FONT is focused) steps through every font in
 --                  fonts/; "default" = the element's role font / the project font
+--   MOVE field     (every button, row, title and hint) a slider that slides it up / down along its center axis (its text moves with it)
 --   ROUND field    (buttons only) a slider for the corner radius, under FONT. Drag it, click the bar, or press
 --                  Left/Right (Shift = 5 at a time) while ROUND is focused; Backspace = back to the project default
 --   Ctrl+V         paste (text field)
@@ -69,9 +70,10 @@ local SWATCHES = {
 local active = false
 local logger = function() end
 local sel = nil                  -- { def, key, target, label, item }
-local field = "text"             -- "text" | "color" | "font" | "radius"
+local field = "text"             -- "text" | "color" | "font" | "radius" | "move"
 local dragRadius = false         -- the ROUND slider is being dragged with the mouse
-local radiusFromMouse            -- set below (needs the panel geometry)
+local dragMove = false           -- the MOVE slider is being dragged with the mouse
+local radiusFromMouse, moveFromMouse   -- set below (need the panel geometry)
 local buf = { text = "", color = "" }   -- (the FONT and ROUND fields have no buffer: they are picked, not typed)
 local edits = nil                -- edits[screenId][key] = { text =, color =, from = {...} }
 local originals = setmetatable({}, { __mode = "k" })   -- target -> { text =, color =, font =, radius = } as the FILE has them
@@ -124,7 +126,7 @@ end
 -- Remember what the FILE says for a target, before any edit touches it.
 local function remember(target)
     if not originals[target] then
-        originals[target] = { text = target.text, color = target.color, font = target.font, radius = target.radius }
+        originals[target] = { text = target.text, color = target.color, font = target.font, radius = target.radius, dy = target.dy }
     end
 end
 
@@ -187,6 +189,25 @@ local function mirrorShared(def, cleared)
     elseif cleared then
         bgui.setShared(nil)
     end
+end
+
+-- What is ACTUALLY drawn behind this page: its own background, else the shared menu background
+-- (config.menuBackground / ui/menu_background.lua). The editor must start from this, not from
+-- def.background alone -- otherwise a page showing the shared picture reads "off", the first B
+-- press "turns it on" (same picture), and only the second really turns it off.
+local function effectiveBg(def)
+    return def.background or bgui.shared()
+end
+
+-- If the page is showing the shared background (def.background == nil), copy its picture, blur
+-- and dim into the page so B / [ ] / - = start from what is on screen. Does nothing otherwise.
+local function adoptShared(def)
+    if def.background then return end
+    local shared = bgui.shared()
+    if not (shared and shared.image) then return end
+    def.background = { image = shared.image, blur = shared.blur or bgBlur }
+    bgBlur = def.background.blur
+    if shared.dim then def.dim = shared.dim end
 end
 
 -- Does the sandbox's default test background belong on this screen?
@@ -262,6 +283,7 @@ function editor.seen(def)
                 elseif type(e.font) == "string" then t.font = e.font end
                 if e.radius == false then t.radius = nil                  -- explicitly "default"
                 elseif type(e.radius) == "number" then t.radius = e.radius end
+                if type(e.dy) == "number" then t.dy = e.dy elseif e.dy == false then t.dy = nil end
             end
         end
     end
@@ -282,14 +304,15 @@ local function record(s)
     e.color = s.target.color
     if s.target.font ~= o.font then e.font = s.target.font or false end   -- false = back to "default"
     if s.target.radius ~= o.radius then e.radius = s.target.radius or false end
+    if s.target.dy ~= o.dy then e.dy = s.target.dy or false end
 
     local unchanged = (e.text == nil or e.text == o.text) and colorKey(e.color) == colorKey(o.color)
-        and s.target.font == o.font and s.target.radius == o.radius
+        and s.target.font == o.font and s.target.radius == o.radius and s.target.dy == o.dy
     if unchanged then
         edits[s.def.id][s.key] = nil
     else
         e.from = { text = type(o.text) == "string" and o.text or nil, color = colorKey(o.color), font = o.font or "",
-                   radius = o.radius or -1 }
+                   radius = o.radius or -1, dy = o.dy or 0 }
         edits[s.def.id][s.key] = e
     end
     saveEdits()
@@ -403,6 +426,29 @@ local function stepRadius(delta)
     setRadius((sel.target.radius or defaultRadius()) + delta)
 end
 
+-- MOVE field: slides the selected button / row / title / hint along its vertical axis (X stays centered),
+-- in 1080p reference pixels, -MOVE_MAX..MOVE_MAX, 0 = where the layout puts it (stored as nil). Works on
+-- every page: the menu pages (data) and the hand-coded ones (their pages add the dy themselves).
+local MOVE_MAX = 400
+local function hasMove()
+    if sel == nil or sel.item == nil then return false end
+    local k = sel.item.kind
+    if k == "label" then return true end                                  -- every title / hint, on every page
+    return k == "button" and ((sel.item.widget ~= nil and sel.item.widget.type == "stack")   -- menu-page stacks
+        or sel.item.id == "rows")                                         -- hand-coded pages' rows
+end
+
+local function setMove(v)
+    if not hasMove() then return end
+    v = v and math.max(-MOVE_MAX, math.min(MOVE_MAX, math.floor(v + 0.5))) or 0
+    if v == 0 then v = nil end
+    if sel.target.dy == v then return end
+    sel.target.dy = v
+    record(sel)
+end
+
+local function stepMove(delta) if hasMove() then setMove((sel.target.dy or 0) + delta) end end
+
 -- SHIFT+F: one font for EVERYTHING. Steps through off -> every font in fonts/ -> off (wraps), applies
 -- at once, is remembered in the save folder and written out by Ctrl+E as ui/all_fonts.lua.
 local function saveUniform(name)
@@ -433,6 +479,7 @@ local function resetSelected()
     if o then
         sel.target.text, sel.target.color, sel.target.font = o.text, o.color, o.font
         sel.target.radius = o.radius
+        sel.target.dy = o.dy
     end
     loadEdits()
     if edits[sel.def.id] then edits[sel.def.id][sel.key] = nil end
@@ -466,6 +513,7 @@ local function cycleBackground()
     local list = bgui.list()
     if #list == 0 then return logger("no images in %s/background/ (add a png or jpg)", LIB_DIR) end
 
+    adoptShared(def)
     local idx = 0
     if def.background then
         for i, path in ipairs(list) do if path == def.background.image then idx = i end end
@@ -483,6 +531,7 @@ end
 
 local function changeBlur(delta)
     local last = current()
+    if last and not last.def.static and not last.def.textOnly then adoptShared(last.def) end
     bgBlur = math.max(0, math.min(bgui.MAX_BLUR, bgBlur + delta))
     if last and last.def.background then
         last.def.background.blur = bgBlur
@@ -498,6 +547,7 @@ local function changeDim(delta)
     local def = last.def
     if def.static then return logger("the HUD draws over the game: it has no dim") end
     if def.textOnly then return logger("this page shows the shared menu background: change its dim with - = on the main menu") end
+    adoptShared(def)
     def.dim = math.max(0, math.min(1, math.floor(((def.dim or 0) + delta) * 20 + 0.5) / 20))
     loadEdits()
     edits[def.id] = edits[def.id] or {}
@@ -715,6 +765,7 @@ local function pageTextsSource()
                     if toHex(t.color) ~= toHex(d.color) then e.color = t.color end
                     if t.font ~= d.font then e.font = t.font end
                     if t.radius ~= d.radius then e.radius = t.radius end
+                    if t.dy ~= d.dy then e.dy = t.dy end
                     if next(e) then
                         data[def.id] = data[def.id] or {}
                         data[def.id][key] = e
@@ -740,6 +791,7 @@ local function pageTextsSource()
                     if e.color ~= nil then o.color = e.color end
                     if type(e.font) == "string" then o.font = e.font end
                     if type(e.radius) == "number" then o.radius = e.radius end
+                    if type(e.dy) == "number" then o.dy = e.dy end
                     if next(o) then
                         data[def.id] = data[def.id] or {}
                         data[def.id][key] = o
@@ -760,7 +812,7 @@ local function pageTextsSource()
         "-- Keyboard, Controller, Other, Textures and Loading pages read it at startup and show these",
         "-- texts / colors instead of the ones in their code. Only what you changed is listed.",
         "--",
-        "-- Layout: [page id][\"title\" | \"hint\" | \"rows#<row key>\"] = { text = \"...\", color = ..., font = \"...\", radius = 12 }",
+        "-- Layout: [page id][\"title\" | \"hint\" | \"rows#<row key>\"] = { text = \"...\", color = ..., font = \"...\", radius = 12, dy = -20 }",
         "-- Edit it by hand, or tweak it again in the editor (love . --sandbox, F11, Ctrl+E).",
         "",
         "return " .. serialize.serialize(data),
@@ -946,6 +998,10 @@ function editor.update()
         if sel and hasRadius() and love.mouse.isDown(1) then radiusFromMouse((love.mouse.getPosition()))
         else dragRadius = false end
     end
+    if dragMove then
+        if sel and hasMove() and love.mouse.isDown(1) then moveFromMouse((love.mouse.getPosition()))
+        else dragMove = false end
+    end
     if not job then return end
     if not job.ran and job.frames >= 2 then          -- the black frame has been presented
         job.ran = true
@@ -1024,8 +1080,15 @@ function editor.keypressed(key)
     end
 
     if key == "tab" then
-        local nextField = { text = "color", color = "font", font = hasRadius() and "radius" or "text", radius = "text" }
+        local nextField = { text = "color", color = "font", font = hasRadius() and "radius" or "text",
+                            radius = hasMove() and "move" or "text", move = "text" }
         field = nextField[field] or "text"
+    elseif field == "move" and (key == "left" or key == "right" or key == "up" or key == "down") then
+        -- Up / Down move the button the way they look on screen; Shift = 10 at a time
+        local dir = (key == "left" or key == "up") and -1 or 1
+        stepMove(dir * (shift() and 10 or 1))
+    elseif field == "move" and key == "backspace" then
+        setMove(nil)                                             -- back to the layout's position
     elseif field == "radius" and (key == "left" or key == "right" or key == "up" or key == "down") then
         local dir = (key == "left" or key == "down") and -1 or 1
         stepRadius(dir * (shift() and 5 or 1))
@@ -1057,7 +1120,7 @@ function editor.passesKey(key) return active and sel == nil and PASS[key] == tru
 
 function editor.textinput(text)
     if not (active and sel) then return false end
-    if field == "font" or field == "radius" then return true end   -- picked, not typed
+    if field == "font" or field == "radius" or field == "move" then return true end   -- picked, not typed
     if field == "color" and #buf.color >= 9 then return true end
     buf[field] = buf[field] .. text
     applyBuffer(field)
@@ -1096,12 +1159,31 @@ local function panel()
         p.radiusValue = { x = p.radiusTrack.x + p.radiusTrack.w + 6, y = ry, w = vw, h = fh }
         bottom = ry
     end
+    -- MOVE row (menu-page buttons): [ slider ] [ value ]
+    if hasMove() then
+        local my = bottom + fh + 8
+        local vw = font:getWidth("default") + 16
+        p.move = { x = x + pad + labelW, y = my, w = p.text.w, h = fh }
+        p.moveTrack = { x = p.move.x, y = my, w = p.move.w - vw - 6, h = fh }
+        p.moveValue = { x = p.moveTrack.x + p.moveTrack.w + 6, y = my, w = vw, h = fh }
+        bottom = my
+    end
     p.h = (bottom + fh + 6 + lh + pad) - y
     p.errorY = bottom + fh + 6
     return p
 end
 
 local function inside(r, x, y) return x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h end
+
+-- Mouse x -> move, along the slider track (left = up, right = down, middle = 0). Snaps to 0 near the middle.
+moveFromMouse = function(x)
+    local t = panel().moveTrack
+    if not t then return end
+    local frac = (x - (t.x + 8)) / math.max(1, t.w - 16)
+    local v = (math.max(0, math.min(1, frac)) * 2 - 1) * MOVE_MAX
+    if math.abs(v) < 4 then v = 0 end
+    setMove(v)
+end
 
 -- Mouse x -> radius, along the slider track (8px of margin at each end for the knob).
 radiusFromMouse = function(x)
@@ -1125,6 +1207,9 @@ function editor.mousepressed(x, y, button)
         elseif p.radiusTrack and inside(p.radiusTrack, x, y) then
             field = "radius" dragRadius = true radiusFromMouse(x)
         elseif p.radiusValue and inside(p.radiusValue, x, y) then field = "radius" setRadius(nil)   -- click the number: default
+        elseif p.moveTrack and inside(p.moveTrack, x, y) then
+            field = "move" dragMove = true moveFromMouse(x)
+        elseif p.moveValue and inside(p.moveValue, x, y) then field = "move" setMove(nil)          -- click the number: back to 0
         else
             for _, s in ipairs(p.sw) do
                 if inside(s, x, y) then buf.color = s.value field = "color" applyBuffer("color") break end
@@ -1172,11 +1257,12 @@ function editor.hints()
                  "Ctrl+E export this page > " .. target .. "  |  Ctrl+Shift+E export all pages  |  F11 exit" }
     end
     if not sel then
-        local bg = def.background
+        local bg = effectiveBg(def)
+        local shownDim = (not def.background and bg and bg.dim) or def.dim or 0
         return { "EDIT MODE: click a title or button to select it  |  Ctrl+click = press it  |  Esc = back",
-                 "B = background (" .. (bg and bg.image:match("[^/]+$") or "off") .. ")  |  [ ] = blur " .. bgBlur
+                 "B = background (" .. (bg and bg.image:match("[^/]+$") or "off") .. ")  |  [ ] = blur " .. (bg and bg.blur or bgBlur)
                      .. "/" .. bgui.MAX_BLUR
-                     .. "  |  - = dim " .. math.floor((def.dim or 0) * 100 + 0.5) .. "%",
+                     .. "  |  - = dim " .. math.floor(shownDim * 100 + 0.5) .. "%",
                  allFonts,
                  "Ctrl+E export this page > " .. target .. "  |  Ctrl+Shift+E export all pages  |  F11 exit" }
     end
@@ -1309,6 +1395,37 @@ function editor.draw()
             love.graphics.rectangle("fill", kx - 4, t.y + 4, 8, t.h - 8)
             local label = r and tostring(r) or "default"
             theme.print(label, v.x + (v.w - font:getWidth(label)) / 2, v.y + (v.h - lh) / 2, r and C.value or C.muted)
+        end
+
+        -- MOVE: [ slider, 0 in the middle ] [ value ]   (menu-page buttons). The button + its text slide live.
+        if p.moveTrack then
+            local focused = field == "move"
+            local d = sel.target.dy
+            local t, v = p.moveTrack, p.moveValue
+            theme.print("MOVE", p.x + theme.PAD, t.y + (t.h - lh) / 2, C.muted)
+            love.graphics.setLineWidth(1)
+            love.graphics.setLineStyle("rough")
+            local function box(b)
+                love.graphics.setColor(focused and 0.16 or 0.09, focused and 0.16 or 0.09, focused and 0.24 or 0.11, 1)
+                love.graphics.rectangle("fill", b.x, b.y, b.w, b.h)
+                local ec = focused and C.select or { 0.4, 0.4, 0.45, 1 }
+                love.graphics.setColor(ec[1], ec[2], ec[3], 1)
+                love.graphics.rectangle("line", b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1)
+            end
+            box(t) box(v)
+            local gx0, gx1 = t.x + 8, t.x + t.w - 8
+            local mid = math.floor((gx0 + gx1) / 2)
+            local gy = math.floor(t.y + t.h / 2) - 1
+            local kx = math.floor(gx0 + (((d or 0) + MOVE_MAX) / (2 * MOVE_MAX)) * (gx1 - gx0) + 0.5)
+            local accent = d and C.select or C.muted
+            love.graphics.setColor(0.28, 0.28, 0.34, 1)
+            love.graphics.rectangle("fill", gx0, gy, gx1 - gx0, 3)
+            love.graphics.rectangle("fill", mid - 1, t.y + 6, 2, t.h - 12)          -- the 0 tick
+            love.graphics.setColor(accent[1], accent[2], accent[3], 1)
+            love.graphics.rectangle("fill", math.min(mid, kx), gy, math.abs(kx - mid), 3)
+            love.graphics.rectangle("fill", kx - 4, t.y + 4, 8, t.h - 8)
+            local label = d and ((d > 0 and "+" or "") .. d) or "0"
+            theme.print(label, v.x + (v.w - font:getWidth(label)) / 2, v.y + (v.h - lh) / 2, d and C.value or C.muted)
         end
 
         for _, s in ipairs(p.sw) do

@@ -1,4 +1,3 @@
-- 3 new font families are live
-
-- now I'm working on making the f11 tool a bit wider, adding more features to it,
-  and giving the option to change button corner roundness on a slider
+- round buttons implemented
+- testing phase
+- bugs

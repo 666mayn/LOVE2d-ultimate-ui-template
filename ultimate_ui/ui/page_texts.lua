@@ -9,6 +9,7 @@
 --   page id : settingsMenu | keyboardMenu | controllerMenu | otherSettingsMenu
 --             | textureFilterMenu | loadingScreen
 --   key     : "title" | "hint" | "rows#<row key>"   (a row key is an action name, e.g. "rows#back")
+--   dy      : optional, any entry: slides it up (-) / down (+), in 1080p pixels (the editor's MOVE slider)
 --
 -- Only list what you want to change; everything else keeps the text in the page's code.
 -- Example:

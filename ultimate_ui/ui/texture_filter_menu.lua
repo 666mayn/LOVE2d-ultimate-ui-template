@@ -115,8 +115,8 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
 
     local rows, rowHeight, rowWidth, ys, fit, bottomY = layout(screenHeight, uiScale)
 
-    local titleY = ys[1] - 90 * uiScale
     local title = page.label("title")
+    local titleY = ys[1] - 90 * uiScale + page.dy(title, uiScale)
     local titleText = widgets.resolveText(title.text)
     local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
@@ -138,7 +138,7 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
     local baseDelay = 0.15
     local stagger = 0.04
     for i, row in ipairs(rows) do
-        local y = ys[i]
+        local y = ys[i] + page.rowDy(row.key, uiScale)
         local hovered = mouseX and mouseY
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
@@ -175,8 +175,8 @@ function texture_filter_menu.drawTextureFilterMenu(screenWidth, screenHeight, se
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
-    local hintY = bottomY + 24 * uiScale
     local hint = page.label("hint")
+    local hintY = bottomY + 24 * uiScale + page.dy(hint, uiScale)
     local hintText = widgets.resolveText(hint.text)
     local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
@@ -199,7 +199,7 @@ function texture_filter_menu.handleTextureFilterMenuClick(x, y, screenWidth, scr
     local rows, rowHeight, rowWidth, ys = layout(screenHeight, uiScale)
     local centerX = math.floor(screenWidth / 2)
     for i, row in ipairs(rows) do
-        local ry = ys[i]
+        local ry = ys[i] + page.rowDy(row.key, uiScale)
         if x >= centerX - rowWidth / 2 and x <= centerX + rowWidth / 2 and y >= ry and y <= ry + rowHeight then
             if row.type == "action" and row.id == "back" then
                 return { action = "back" }

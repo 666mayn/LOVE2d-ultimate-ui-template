@@ -85,9 +85,9 @@ function controller_menu.drawControllerMenu(screenWidth, screenHeight, selection
     -- Positioned relative to startY (not a fixed offset like the shorter
     -- Keyboard menu uses) because this list has more rows (7 binds vs 5)
     -- and was clipping into the row list at a fixed -340 offset.
-    local titleGap = 90 * uiScale
-    local titleY = startY - titleGap
     local title = page.label("title")
+    local titleGap = 90 * uiScale
+    local titleY = startY - titleGap + page.dy(title, uiScale)
     local titleText = widgets.resolveText(title.text)
     local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
@@ -105,7 +105,7 @@ function controller_menu.drawControllerMenu(screenWidth, screenHeight, selection
     local baseDelay = 0.15
     local stagger = 0.04
     for i, row in ipairs(rows) do
-        local y = rowY(startY, rowHeight, rowSpacing, i)
+        local y = rowY(startY, rowHeight, rowSpacing, i) + page.rowDy(row.id, uiScale)
         local hovered = mouseX and mouseY
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
@@ -135,8 +135,8 @@ function controller_menu.drawControllerMenu(screenWidth, screenHeight, selection
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
-    local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1)
     local hint = page.label("hint")
+    local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1) + page.dy(hint, uiScale)
     local hintText = widgets.resolveText(hint.text)
     local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
@@ -161,7 +161,7 @@ function controller_menu.handleControllerMenuClick(x, y, screenWidth, screenHeig
     local centerX = math.floor(screenWidth / 2)
 
     for i, row in ipairs(rows) do
-        local ry = rowY(startY, rowHeight, rowSpacing, i)
+        local ry = rowY(startY, rowHeight, rowSpacing, i) + page.rowDy(row.id, uiScale)
         if x >= centerX - rowWidth / 2 and x <= centerX + rowWidth / 2 and y >= ry and y <= ry + rowHeight then
             if row.type == "keybind" then
                 return { action = "rebind", id = row.id }

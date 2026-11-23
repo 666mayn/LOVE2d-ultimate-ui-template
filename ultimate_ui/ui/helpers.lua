@@ -77,7 +77,7 @@ helpers.textY = function(boxY, boxH) return fonts.textY(boxY, boxH, love.graphic
 
 -- Corner radius of a button / row box, in screen pixels. `radius` is in 1080p reference pixels (the
 -- unit every other size in the template uses) and is scaled by uiScale. nil = the project default,
--- config.buttonRadius, else 0 (square corners). Never more than half the shorter side, so a big
+-- config.buttonRadius, else 0 if that is unset (square corners). Never more than half the shorter side, so a big
 -- number simply gives a pill shape instead of breaking the corners.
 helpers.MAX_RADIUS = 40
 function helpers.cornerRadius(radius, uiScale, boxW, boxH)
@@ -99,7 +99,7 @@ end
 -- Helper for drawing scaled buttons
 -- `fontName` (optional) picks this one button's font; otherwise the "button" role / project font is used.
 -- `radius` (optional, 1080p reference pixels) rounds this one button's corners; otherwise
--- config.buttonRadius (default 0 = square).
+-- config.buttonRadius (ships at 12; 0 = square).
 function helpers.drawScaledButton(text, centerX, y, buttonWidth, buttonHeight, isSelected, isHovered, anyHovered, uiScale, r, g, b, alpha, fontName, radius)
     alpha = alpha or 1
     local rad = helpers.cornerRadius(radius, uiScale, buttonWidth, buttonHeight)

@@ -10,6 +10,10 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 | :---: | :---: | :---: |
 | ![F11 font editor showing the new font families](reference_screenshots/ui_editor_font_editor.png) | ![Rounded buttons in the game](reference_screenshots/ui_editor_button_roundness_update_1.png) | ![F11 editor panel with the ROUND corner-radius slider](reference_screenshots/ui_editor_button_roundness_update_2.png) |
 
+| Button Mover (MOVE slider, buttons slid along the center axis) | Button Mover (MOVE slider in the F11 editor) |
+| :---: | :---: |
+| ![Menu buttons repositioned with the MOVE slider](reference_screenshots/ui_editor_button_mover_1.png) | ![F11 editor panel with the MOVE slider under ROUND](reference_screenshots/ui_editor_button_mover_2.png) |
+
 | Live F11 UI Editor (with F1 help panel) | Live F11 UI Editor (editing text and color) |
 | :---: | :---: |
 | ![F11 UI editor open, F1 help panel on the right](reference_screenshots/ui_editor_open.png) | ![F11 UI editor open, editing a widget](reference_screenshots/ui_editor_open_2.png) |
@@ -32,7 +36,7 @@ Run it as-is (`love .`) to see a tiny demo: scroll a black-and-grey checkerboard
 
 ## Edit every menu, export in one keypress
 
-Run `love . --sandbox`, press **F11**, click any title, button or hint on **any** screen, and type. Main menu, pause menu, HUD, Settings, Keyboard, Controller, Other, Textures and the loading screen are all editable (text and color). Then export:
+Run `love . --sandbox`, press **F11**, click any title, button or hint on **any** screen, and type. Main menu, pause menu, HUD, Settings, Keyboard, Controller, Other, Textures and the loading screen are all editable: text, color, font, corner **roundness** and **position**. Then export:
 
 | Key | Does | Works |
 | --- | --- | --- |
@@ -44,6 +48,12 @@ Run `love . --sandbox`, press **F11**, click any title, button or hint on **any*
 * The menu background is exported as `ui/menu_background.lua`, so the picture you see in the sandbox is the picture plain `love .` shows. `return nil` in that file turns it off, and `config.menuBackground` overrides it.
 * If anything goes wrong, `ultimate_ui_export_log.txt` in the save folder (F9) records exactly what was tried and why it failed.
 
+### Roundness and moving things
+
+* **ROUND** is a slider (0 to 40) for a button's corner radius. Buttons ship at **12**; drag to 0 for square corners. Set the project-wide default with `buttonRadius` in `ultimate_ui/config.lua`.
+* **MOVE** is a slider under ROUND (Tab reaches it) that slides the selected **button, row, title or hint** up or down along its center axis, from -400 to +400 in 1080p pixels, with 0 in the middle. X stays locked to the center, and the text, hit-box and pop-in move together with the box. Use Up/Down (Shift = 10) for fine steps; Backspace or clicking the number resets it. Works on every page: main, pause, Settings, Keyboard, Controller, Other, Textures and Loading, plus the HUD title. Moving a title does not drag its subtitle with it.
+* The position is saved as `dy` on the element and exported with the page (`ui/main_menu.lua`, `ui/pause_menu.lua`, `ui/hud_screen.lua`, or `ui/page_texts.lua` for the hand-coded pages).
+
 ## F1 Helper Menu: Feature Stack
 
 Run the template with `love . --sandbox` and press **F1** (or the backtick key) at any time, on any screen, in the menus or in the game. A live helper panel opens in the top-right corner, and a status strip sits in the bottom-left corner showing the current screen, window size and active modes, with a reminder of `F1 = help | F11 = edit`.
@@ -54,8 +64,8 @@ The panel is a cheat sheet and a live readout in one:
 | --- | --- |
 | **State** | Current screen, menu cursor row, whether a rebind is waiting, window size and UI scale, active texture filter and CRT filter, connected gamepads, mouse position, FPS, and how many `.lua` files auto-reload is watching |
 | **Jump to screen** | With the panel open, press `1`-`8` to go straight to Main, Pause, Settings, Keyboard, Controller, Other, Texture, or back into the Game, with no clicking through menus |
-| **Hotkeys** | `F2` window size presets, `F3` virtual gamepad, `F4` event log, `F5` restart, `F6` auto-reload, `F7` loading-screen preview, `F8` wipe saves (press twice), `F9` open the save folder, `F10` hide the overlay, `F12` clean screenshot |
-| **Editor** | `F11` edit mode, `B` background, `[` `]` blur, `-` `=` dim, `Shift+F` one font for everything. Click a button and the editor panel has a TEXT, COLOR, FONT and **ROUND** (corner radius) row. `Ctrl+E` exports the current page and `Ctrl+Shift+E` exports all pages, **with edit mode on or off**. Every page's titles and buttons are editable; Settings / Keyboard / Controller / Other / Textures / Loading export to `ui/page_texts.lua`, the shared background to `ui/menu_background.lua`, and the all-fonts choice to `ui/all_fonts.lua` |
+| **Hotkeys** | `F2` window size presets, `F3` virtual gamepad, `F4` event log, `F5` restart, `F6` auto-reload, `F7` loading-screen preview, `F8` reset everything (press twice): wipes saved settings **and all F11 editor edits**, then restarts at the placeholder defaults; `exports/` is never touched, `F9` open the save folder, `F10` hide the overlay, `F12` clean screenshot |
+| **Editor** | `F11` edit mode, `B` background, `[` `]` blur, `-` `=` dim, `Shift+F` one font for everything. Click a button and the editor panel has a TEXT, COLOR, FONT, **ROUND** (corner radius) and **MOVE** (vertical position) row. `Ctrl+E` exports the current page and `Ctrl+Shift+E` exports all pages, **with edit mode on or off**. Every page's titles and buttons are editable; Settings / Keyboard / Controller / Other / Textures / Loading export to `ui/page_texts.lua`, the shared background to `ui/menu_background.lua`, and the all-fonts choice to `ui/all_fonts.lua` |
 
 A few notes:
 

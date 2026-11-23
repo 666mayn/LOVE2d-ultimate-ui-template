@@ -85,9 +85,9 @@ function other_settings_menu.drawOtherSettingsMenu(screenWidth, screenHeight, se
     -- Positioned relative to startY (like ui/controller_menu.lua) rather
     -- than a fixed offset, so this stays correct as more rows get added
     -- to other_settings.lua's ROW_DEFS later instead of clipping.
-    local titleGap = 90 * uiScale
-    local titleY = startY - titleGap
     local title = page.label("title")
+    local titleGap = 90 * uiScale
+    local titleY = startY - titleGap + page.dy(title, uiScale)
     local titleText = widgets.resolveText(title.text)
     local tr, tg, tb = page.rgb(title, r, g, b)
     local titleScale, titleAlpha = helpers.popIn(t, 0, 0.5)
@@ -105,7 +105,7 @@ function other_settings_menu.drawOtherSettingsMenu(screenWidth, screenHeight, se
     local baseDelay = 0.15
     local stagger = 0.04
     for i, row in ipairs(rows) do
-        local y = rowY(startY, rowHeight, rowSpacing, i)
+        local y = rowY(startY, rowHeight, rowSpacing, i) + page.rowDy(row.id, uiScale)
         local hovered = mouseX and mouseY
             and mouseX >= centerX - rowWidth / 2 and mouseX <= centerX + rowWidth / 2
             and mouseY >= y and mouseY <= y + rowHeight
@@ -134,8 +134,8 @@ function other_settings_menu.drawOtherSettingsMenu(screenWidth, screenHeight, se
     end
 
     local hintScale, hintAlpha = helpers.popIn(t, baseDelay + #rows * stagger + 0.1, 0.35)
-    local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1)
     local hint = page.label("hint")
+    local hintY = rowY(startY, rowHeight, rowSpacing, #rows + 1) + page.dy(hint, uiScale)
     local hintText = widgets.resolveText(hint.text)
     local hr, hg, hb = page.rgb(hint, 153, 153, 153)
     helpers.withPop(centerX, hintY, hintScale, hintAlpha, function()
@@ -160,7 +160,7 @@ function other_settings_menu.handleOtherSettingsMenuClick(x, y, screenWidth, scr
     local centerX = math.floor(screenWidth / 2)
 
     for i, row in ipairs(rows) do
-        local ry = rowY(startY, rowHeight, rowSpacing, i)
+        local ry = rowY(startY, rowHeight, rowSpacing, i) + page.rowDy(row.id, uiScale)
         if x >= centerX - rowWidth / 2 and x <= centerX + rowWidth / 2 and y >= ry and y <= ry + rowHeight then
             if row.type == "cycle" then
                 return { action = "cycle", id = row.id }

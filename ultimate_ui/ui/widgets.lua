@@ -70,6 +70,10 @@
 -- reference pixels like every other size here (0 / nil = square). An item's radius beats its stack's,
 -- which beats config.buttonRadius. The F11 editor's ROUND slider sets it. See ui/helpers.lua.
 --
+-- POSITION: a stack item (button) or a label (title) may carry  dy = -40  -- slides it up (-) or down (+)
+-- in 1080p reference pixels. Centered on X always. The F11 editor's MOVE slider sets it. The hand-coded
+-- pages (textPage) take the same dy per title / hint / row from ui/page_texts.lua.
+--
 -- Colors are "rainbow" (the animated default) or { r, g, b } with each 0..1.
 
 local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")
@@ -167,10 +171,13 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
                 local y = startY
                 for i, it in ipairs(w.items) do
                     y = y + gaps[i]
+                    -- `dy` (1080p px, + = down) slides this one button along the vertical axis. X stays
+                    -- locked to the center, the flow of the other buttons is untouched, and since the
+                    -- box, its text, the hit-box and the pop-in all derive from this one y, they move together.
                     local item = {
                         kind = "button", widget = w, id = w.id,
                         text = resolveText(it.text), action = it.action,
-                        x = centerX - bw / 2, y = y, w = bw, h = bh, cx = centerX,
+                        x = centerX - bw / 2, y = y + floor((it.dy or 0) * uiScale), w = bw, h = bh, cx = centerX,
                         color = it.color or w.color, index = i,
                         font = it.font or w.font,
                         radius = it.radius or w.radius,
@@ -187,7 +194,8 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
             elseif w.type == "label" then
                 local ref = w.relativeTo and byId[w.relativeTo]
                 local off = w.offset or { 0, 0 }
-                local y = (ref and ref.y or 0) + off[2] * uiScale
+                local baseY = (ref and ref.y or 0) + off[2] * uiScale
+                local y = baseY + floor((w.dy or 0) * uiScale)      -- dy: slide this title up (-) / down (+)
                 local h = w.fontSize * uiScale
                 local pop = w.pop or {}
                 local item = {
@@ -199,7 +207,9 @@ function widgets.layout(def, screenWidth, screenHeight, uiScale)
                     popDelay = pop.delay or 0, popDuration = pop.duration or 0.5,
                 }
                 items[#items + 1] = item
-                byId[w.id] = item
+                -- Widgets that hang off this one use its UNMOVED spot, so sliding a title does not
+                -- drag its subtitle along: every title moves on its own.
+                byId[w.id] = { x = item.x, y = baseY, w = item.w, h = item.h }
 
             elseif w.type == "stats" then
                 local list = widgets.data[def.id .. "." .. w.id] or {}
@@ -398,7 +408,7 @@ function widgets.pageTexts() return loadPageTexts() end
 widgets.defaults = setmetatable({}, { __mode = "k" })
 
 local function giveOverrides(def, key, target)
-    widgets.defaults[target] = { text = target.text, color = target.color, font = target.font, radius = target.radius }
+    widgets.defaults[target] = { text = target.text, color = target.color, font = target.font, radius = target.radius, dy = target.dy }
     local mine = loadPageTexts()[def.id]
     local o = mine and mine[key]
     if type(o) == "table" then
@@ -406,6 +416,7 @@ local function giveOverrides(def, key, target)
         if o.color ~= nil then target.color = o.color end
         if type(o.font) == "string" then target.font = o.font end
         if type(o.radius) == "number" then target.radius = o.radius end
+        if type(o.dy) == "number" then target.dy = o.dy end
     end
 end
 
@@ -428,6 +439,23 @@ function widgets.textPage(spec)
     local byKey = {}
 
     function page.label(id) return byId[id] end
+
+    -- MOVE: vertical slide of a title / hint (page.dy(label, uiScale)) or of a row by its key
+    -- (page.rowDy(key, uiScale)), in screen pixels. Pages add it to the y they computed, in the
+    -- drawing AND in the click handler, so the box, its text and its hit-box stay together.
+    function page.dy(entry, uiScale)
+        return math.floor(((entry and entry.dy) or 0) * (uiScale or 1))
+    end
+    function page.rowDy(key, uiScale)
+        local it = byKey[key]
+        local d
+        if it then d = it.dy
+        else
+            local o = (loadPageTexts()[def.id] or {})["rows#" .. tostring(key)]   -- not created yet: what the file says
+            d = type(o) == "table" and o.dy or nil
+        end
+        return math.floor((d or 0) * (uiScale or 1))
+    end
 
     function page.item(key, default)
         local it = byKey[key]

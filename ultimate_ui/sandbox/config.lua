@@ -90,5 +90,6 @@ return {
         "ultimate_ui_other_settings.txt",
         "ultimate_ui_texture_filter_choice.txt",
         "ultimate_ui_crt_filter_choice.txt",
+        "ultimate_ui_sandbox_edits.txt",   -- everything done in the F11 editor (text, colors, fonts, ROUND, MOVE, background, dim, all-fonts)
     },
 }
