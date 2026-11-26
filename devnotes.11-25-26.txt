@@ -1,0 +1,8 @@
+new video intro wiring is in, and example_intro is now included in the build, easily replaceable as the code looks for it's nest now
+
+everything is starting to feel extremely polished
+
+tomorrow I am going to make new button options for action, when you click a button,
+and on top of that, I will fix the false hovering problem... code currently thinks "there is always a controller plugged in"
+but obviously that isn't the case for most PC gamers, so we need to make it first react to mouse, and if controller is plugged in
+react to controller... Hopefully this patch is smooth and easy, which is why I've been waiting to do it.1

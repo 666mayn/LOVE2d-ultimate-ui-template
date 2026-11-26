@@ -1,9 +1,0 @@
-round buttons now in the editor, and you can move any button around with it's accompanying text up and down the center axis on the screen! anywhere you want. Titles also, pretty cool. I'm pumped with it.
-
-Tomorrow? Who knows. Probably starting that physics on buttons attempt. I just want to see where that takes it.
-
-Gonna try to learn how bump works tonight, and see what it's missing, a bump side-library like the g3d map editor would be neat to build,
-this would mean g3d, and bump, would be required for ultimate_devtool though and I don't like that...
-
-Goal is to remain external or internal, but rival Godot in scene editing for the map editor, but without g3d, that's pretty hard... it's entirely
-different. IDK. I'll check it out, and we will see.
