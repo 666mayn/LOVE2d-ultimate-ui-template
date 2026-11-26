@@ -42,8 +42,8 @@
 --     test it before shipping strong curvature on a mouse-driven UI.
 --   * Saved to LÖVE's save folder as ultimate_ui_crt_filter_choice.txt.
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
-local debuglog = require(ROOT .. ".debuglog")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
+local debuglog = require(ROOT .. ".src.debuglog")
 
 local M = {}
 

@@ -40,9 +40,20 @@ local config = {
     -- height just makes a pill.
     buttonRadius = 12,
 
-    -- Optional startup videos (.ogv) played back to back before the main menu.
-    -- Leave empty to skip the intro entirely.
-    introVideos = {},          -- e.g. { "intros/intro1.ogv", "intros/intro2.ogv" }
+    -- STARTUP INTRO. nil (or an empty list {}) = play every .ogv in ultimate_ui/intro_clips/ (nested
+    -- folders fine, path order): replace the file, or add intro2.ogv, and that's it. A list of paths plays exactly those
+    -- ({ "intros/a.ogv", "intros/b.ogv" }). false = no intro. Any key / click / button skips it.
+    -- The game builds its menus (fonts, blurred background ...) while the intro plays.
+    introVideos = nil,
+    introSkipHint = false,     -- true shows "Press any key to skip" on the intro
+
+    -- MOUSE CURSOR. Drop an image (.png / .jpg / .bmp / .tga) in ultimate_ui/cursor/ and it replaces
+    -- the system cursor. Big images are shrunk to cursorSize px (longest side). cursorHotspot is the
+    -- pixel that clicks, as fractions of the image: { 0, 0 } = top-left, { 0.5, 0.5 } = middle.
+    -- cursor = false keeps the system cursor.
+    cursor = true,
+    cursorSize = 32,
+    cursorHotspot = { 0.5, 0.5 },
 
     -- ONE background picture shared by EVERY menu page (main, pause, settings, keyboard,
     -- controller, other, texture, loading), so it never drops out as you move between them.

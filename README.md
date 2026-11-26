@@ -154,14 +154,17 @@ Your own code can use the same logger: `UI.log.warn("...")`, `UI.log.warnOnce(ke
 main.lua, conf.lua        demo only: the "YOUR GAME" toy and its window settings
 ultimate_ui/              <- the whole library: copy this folder, nothing else
   init.lua                the single entry point  (require("ultimate_ui"))
-  config.lua              title, version, font, intro videos, ...
+  config.lua              YOUR settings: title, version, font, intro, cursor, ...
   ui/                     the screens: main menu, pause, settings, keyboard, controller, ...
                           (page_texts.lua = edited texts, menu_background.lua = shared background: both exported here)
   fonts/  background/     drop your .ttf and your menu background images here
-  sounds/                 drop ui.ogg (button click) and loading.ogg (loading screen) here
+  cursor/                 drop ONE image (.png/.jpg/.bmp/.tga): it becomes the mouse cursor (see cursor/README.md)
+  intro_clips/            drop .ogv videos: they play on startup, in path order, while the menus are pre-built (see its README)
+  sounds/                 drop ui.ogg (button click), loading.ogg (loading screen) and intro.ogg (over the intro video) here
   crt_filters/            the screen-filter shaders
   sandbox/                dev tools (love . --sandbox); delete before you ship
-  audio.lua  ui_sounds.lua  input.lua  keybinds.lua  controller.lua  menu_input.lua  checks.lua  debuglog.lua  ...
+  src/                    the engine, normally left alone: audio, ui_sounds, input, keybinds, controller, menu_input,
+                          fonts, cursor, intro_sequence, warmup, crt_manager, checks, debuglog, ...
 exports/                  where the sandbox editor writes exported pages (drag exports/ultimate_ui onto the project root)
 reference_screenshots/    the images used in this README
 ```

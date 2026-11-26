@@ -13,8 +13,8 @@
 --
 -- The menu click / loading-screen sounds are wired up in ui_sounds.lua.
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
-local debuglog = require(ROOT .. ".debuglog")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
+local debuglog = require(ROOT .. ".src.debuglog")
 
 local audio = {
     globalSFXVolume = 0.3,

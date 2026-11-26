@@ -29,7 +29,7 @@
 --
 -- Fonts keep their own filter; they are not tied to texture_filter_manager.
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
 local fonts = {}
 
 -- love.filesystem paths start at the game root, so locate fonts/ from wherever this
@@ -58,7 +58,7 @@ local function warnOnce(fmt, ...)
     local msg = string.format(fmt, ...)
     if warned[msg] then return end
     warned[msg] = true
-    local ok, debuglog = pcall(require, ROOT .. ".debuglog")
+    local ok, debuglog = pcall(require, ROOT .. ".src.debuglog")
     if ok and debuglog.warn then debuglog.warn("%s", msg) else print("[ultimate_ui] " .. msg) end
 end
 

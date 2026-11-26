@@ -14,8 +14,8 @@
 -- "b" is used as the global BACK button in menus, but you can still bind it
 -- to gameplay actions.
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
-local debuglog = require(ROOT .. ".debuglog")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
+local debuglog = require(ROOT .. ".src.debuglog")
 
 local controller = {}
 

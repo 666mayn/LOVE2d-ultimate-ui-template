@@ -10,12 +10,20 @@
 --     UI.configure{ title = "..." }  -- override ultimate_ui/config.lua values from your own code
 --     UI.ui.drawMainMenu(...)        -- the draw / click API (ui/init.lua)
 --     UI.state, UI.keybinds, UI.controller, UI.input, UI.audio, UI.sounds, UI.fonts, UI.config,
---     UI.menu_input, UI.other_settings, UI.textures, UI.crt, UI.loading, UI.intro, UI.log, UI.checks
+--     UI.menu_input, UI.other_settings, UI.textures, UI.crt, UI.loading, UI.intro, UI.cursor, UI.warmup, UI.log, UI.checks
 --
--- Every module also works under its file name (UI.ui_state, UI.crt_manager, ...), and
--- can be required directly: require("ultimate_ui.keybinds"). Because every file inside
+-- Every module also works under its file name (UI.ui_state, UI.crt_manager, ...). The engine code
+-- lives in src/, so a direct require is require("ultimate_ui.src.keybinds"); the older
+-- require("ultimate_ui.keybinds") still works too (aliased below). Because every file inside
 -- the folder finds its siblings relative to its own module name, the folder can be
 -- renamed or moved without editing anything.
+--
+-- WHAT YOU TOUCH vs WHAT YOU LEAVE ALONE
+--   config.lua                 your settings (title, version, fonts, intro, cursor ...)
+--   ui/                        the screens: edit them, or let the sandbox editor (F11) export them here
+--   fonts/ background/ cursor/ intro_clips/ sounds/     drop your own files in, no code
+--   src/                       the engine (input, audio, menus' logic, filters' manager ...): normally untouched
+--   crt_filters/  sandbox/     the screen-filter shaders, and the dev tools (delete sandbox/ before you ship)
 --
 -- Nothing is installed in the global namespace and nothing outside this folder is
 -- touched, so it cannot collide with your own input.lua / audio.lua / config.lua / ui/.
@@ -49,6 +57,8 @@ local MODULES = {
     crt            = "crt_manager",
     loading        = "loading_screen",
     intro          = "intro_sequence",
+    cursor         = "cursor",                   -- custom mouse cursor from cursor/
+    warmup         = "warmup",                   -- one-time set-up jobs run behind the intro
     log            = "debuglog",
     checks         = "checks",                   -- startup self-check (run by UI.init)
     sandbox        = "sandbox",                  -- dev tool; see UI.hasSandbox()
@@ -61,11 +71,27 @@ for _, mod in pairs({
     MODULES[mod] = mod
 end
 
+-- The modules that live in src/ (everything else is ui/..., sandbox, or config.lua at this level).
+local SRC = {}
+for _, name in ipairs({
+    "audio", "checks", "controller", "crt_manager", "cursor", "debuglog", "fonts", "input",
+    "intro_sequence", "keybinds", "loading_screen", "menu_input", "other_settings",
+    "texture_filter_manager", "ui_sounds", "ui_state", "warmup",
+}) do
+    SRC[name] = true
+    -- Old name still works: require("<lib>.keybinds") loads <lib>/src/keybinds.lua (the same table).
+    -- The screens in ui/ and the sandbox use these, so edited / exported screens keep working untouched.
+    local old = ROOT .. "." .. name
+    if package.loaded[old] == nil and package.preload[old] == nil then
+        package.preload[old] = function() return require(ROOT .. ".src." .. name) end
+    end
+end
+
 setmetatable(UI, {
     __index = function(t, key)
         local mod = MODULES[key]
         if not mod then return nil end
-        local value = require(ROOT .. "." .. mod)
+        local value = require(ROOT .. "." .. (SRC[mod] and ("src." .. mod) or mod))
         rawset(t, key, value)
         return value
     end,
@@ -99,6 +125,7 @@ function UI.init()
     UI.state.init()
     UI.loading.init()
     UI.sounds.refresh()  -- finds ui.* / loading.* (or the examples) in sounds/
+    UI.cursor.init()     -- custom mouse cursor (cursor/ folder)
     UI.checks.run()      -- warns (console + sandbox log) about missing image / fonts / filters ...
     return UI
 end

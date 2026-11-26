@@ -6,9 +6,9 @@
 --   if input.isDown("placeholder_forward") then player.y = player.y - speed * dt end
 --   function love.keypressed(key) if input.pressedKey("placeholder_jump", key) then ... end end
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
-local keybinds = require(ROOT .. ".keybinds")
-local controller = require(ROOT .. ".controller")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
+local keybinds = require(ROOT .. ".src.keybinds")
+local controller = require(ROOT .. ".src.controller")
 
 local input = {}
 

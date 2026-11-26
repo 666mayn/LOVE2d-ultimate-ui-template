@@ -13,7 +13,7 @@
 --   * CRT filters        none (or some) of crt_filters/ present, or a filter file
 --                        that crt_manager.lua doesn't list
 --   * intro videos       a file in config.introVideos is missing / not .ogv
---   * sounds             a ui.* / loading.* file in sounds/ that will not decode, or has an
+--   * sounds             a ui.* / loading.* / intro.* file in sounds/ that will not decode, or has an
 --                        extension LOVE can't use (only .ogg / .mp3 / .wav are picked up)
 --   * save folder        can't write there (settings would not persist)
 --   * LOVE version       the template targets LOVE 11.x
@@ -25,8 +25,8 @@
 --
 -- Nothing here ever throws: a check that errors is reported as a warning and skipped.
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
-local debuglog = require(ROOT .. ".debuglog")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
+local debuglog = require(ROOT .. ".src.debuglog")
 
 local DIR = (ROOT:gsub("%.", "/"))     -- this folder, from the game root
 local fs = love.filesystem
@@ -109,7 +109,7 @@ local function checkFonts(config)
         return warn("fonts folder not found (%s/) -- using LOVE's built-in font, so the menus will not look like the template. Create it and drop a .ttf or .otf inside.", dir)
     end
 
-    local okf, fonts = pcall(require, ROOT .. ".fonts")
+    local okf, fonts = pcall(require, ROOT .. ".src.fonts")
     if not okf then return warn("fonts.lua could not be loaded: %s", tostring(fonts)) end
     local found = fonts.list()                         -- every .ttf / .otf, nested folders included
     if #found == 0 then
@@ -137,7 +137,7 @@ local function checkFonts(config)
 end
 
 local function checkFilters()
-    local okm, crt = pcall(require, ROOT .. ".crt_manager")
+    local okm, crt = pcall(require, ROOT .. ".src.crt_manager")
     if not okm or not crt.getOptions then return end
     local dir = DIR .. "/crt_filters"
 
@@ -184,18 +184,18 @@ local function checkIntroVideos(config)
 end
 
 local function checkSounds()
-    local sounds = require(ROOT .. ".ui_sounds")
-    local audio = require(ROOT .. ".audio")
+    local sounds = require(ROOT .. ".src.ui_sounds")
+    local audio = require(ROOT .. ".src.audio")
     local dir = DIR .. "/sounds"
 
     -- the file that is actually in use must decode (audio.lua warns with the path if not)
-    for _, slot in ipairs({ "ui", "loading" }) do
+    for _, slot in ipairs({ "ui", "loading", "intro" }) do
         local path = sounds.path(slot)
         if path then audio.getSFXDuration(path) end
     end
 
     -- a file named like a slot but with an extension that is never looked for
-    for _, name in ipairs(listFiles(dir, { "^ui%.[^.]+$", "^loading%.[^.]+$" })) do
+    for _, name in ipairs(listFiles(dir, { "^ui%.[^.]+$", "^loading%.[^.]+$", "^intro%.[^.]+$" })) do
         local ext = name:lower():match("%.([^.]+)$")
         if ext ~= "ogg" and ext ~= "mp3" and ext ~= "wav" then
             warn("%s/%s is ignored: only .ogg, .mp3 and .wav are used. Convert it, e.g. to %s.ogg.",

@@ -7,9 +7,10 @@ return {
     -- (Remembered in the save folder as ultimate_ui_sandbox_session.txt.)
     restoreOnLaunch = true,
 
-    -- Skip config.introVideos while developing -- nobody wants a 10s intro
-    -- on every reload.
-    skipIntro = true,
+    -- true skips the intro on every launch / reload (the menus are then built all at once before the
+    -- first frame, so the window stalls for a moment). false plays it: the intro covers that set-up,
+    -- and any key or click skips it.
+    skipIntro = false,
 
     -- Watch every .lua file in the project; when one changes on disk, restart
     -- the game and land back on the same screen. F6 toggles it at runtime.

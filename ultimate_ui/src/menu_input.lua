@@ -21,13 +21,13 @@
 -- Esc / B for "back") plays the UI sound from ui_sounds.lua. Clicking empty space is
 -- silent. Replace the sound by dropping ui.ogg into ultimate_ui/sounds/.
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
 local ui = require(ROOT .. ".ui")
-local ui_state = require(ROOT .. ".ui_state")
-local keybinds = require(ROOT .. ".keybinds")
-local controller = require(ROOT .. ".controller")
-local other_settings = require(ROOT .. ".other_settings")
-local sounds = require(ROOT .. ".ui_sounds")
+local ui_state = require(ROOT .. ".src.ui_state")
+local keybinds = require(ROOT .. ".src.keybinds")
+local controller = require(ROOT .. ".src.controller")
+local other_settings = require(ROOT .. ".src.other_settings")
+local sounds = require(ROOT .. ".src.ui_sounds")
 
 local menu_input = {}
 

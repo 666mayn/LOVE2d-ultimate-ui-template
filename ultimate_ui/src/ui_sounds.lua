@@ -1,6 +1,8 @@
 -- ui_sounds.lua
--- The two built-in sounds of the template, wired to the menus:
+-- The three built-in sounds of the template, wired to the menus:
 --
+--     intro    played over the startup intro video; cut off when the intro ends or is skipped
+--              (a click / key press during the intro plays the ui sound instead)
 --     ui       played whenever a menu button is activated (mouse click, Enter, gamepad A,
 --              and Esc / B for "back")
 --     loading  played when the loading screen starts; the loading screen is held for
@@ -8,12 +10,13 @@
 --
 -- WHERE THE FILES LIVE   <this folder>/sounds/
 --
--- TO USE YOUR OWN: drop a file named  ui.ogg  and/or  loading.ogg  (or .mp3 / .wav) into
--- that folder. No code, no config. Yours wins over the bundled  example_ui.ogg  /
--- example_loading.ogg ; delete the examples whenever you like (before shipping, say).
+-- TO USE YOUR OWN: drop a file named  ui.ogg,  loading.ogg  and/or  intro.ogg  (or .mp3 / .wav)
+-- into that folder. No code, no config. Yours wins over the bundled  example_ui.ogg  /
+-- example_loading.ogg / example_intro.ogg ; delete the examples whenever you like (before shipping, say).
 --
 --     ui.ogg       -> example_ui.ogg        (first one found wins)
 --     loading.ogg  -> example_loading.ogg
+--     intro.ogg    -> example_intro.ogg
 --
 -- If several formats of the same name exist, the order is .ogg, then .mp3, then .wav.
 -- File names are matched case-insensitively (Loading.MP3 works). Nothing found for a
@@ -28,14 +31,15 @@
 --   sounds.playUI()                       -- the click sound, e.g. for your own buttons
 --   sounds.playLoading()                  -- start the loading sound (returns the Source)
 --   sounds.stopLoading()                  -- cut it off (the loading screen does this on finish)
+--   sounds.playIntro() / sounds.stopIntro()  -- the intro sound (main.lua starts / stops it with the intro video)
 --   sounds.loadingDuration(fallback)      -- length of the loading sound in seconds,
 --                                         -- or `fallback` (default 2.0) if there is none
 --   sounds.path("ui" | "loading")         -- the file in use, or nil
 --   sounds.refresh()                      -- rescan the folder (UI.init() already did)
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
-local debuglog = require(ROOT .. ".debuglog")
-local audio = require(ROOT .. ".audio")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
+local debuglog = require(ROOT .. ".src.debuglog")
+local audio = require(ROOT .. ".src.audio")
 
 local DIR = (ROOT:gsub("%.", "/")) .. "/sounds"   -- from the game root, e.g. "ultimate_ui/sounds"
 
@@ -46,15 +50,17 @@ local EXTENSIONS = { "ogg", "mp3", "wav" }
 local SLOTS = {
     ui      = { "ui",      "example_ui" },
     loading = { "loading", "example_loading" },
+    intro   = { "intro",   "example_intro" },
 }
 
 local sounds = { dir = DIR }
 
-local SLOT_ORDER = { "ui", "loading" }
+local SLOT_ORDER = { "ui", "loading", "intro" }
 
 local found = {}            -- slot -> path, or nil when nothing was found
 local scanned = false       -- the folder is scanned on first use (or by refresh())
 local loadingInstance = nil -- the playing loading Source, so it can be stopped
+local introInstance = nil   -- the playing intro Source, so it can be stopped
 
 -- Real file name in the folder for a lowercase name, so "Loading.MP3" matches on any OS.
 local function folderIndex()
@@ -124,6 +130,23 @@ function sounds.stopLoading()
     if loadingInstance then
         loadingInstance:stop()
         loadingInstance = nil
+    end
+end
+
+-- Starts the intro sound (restarting it if it is already playing). Silent if there is none.
+function sounds.playIntro()
+    ensureScanned()
+    sounds.stopIntro()
+    if found.intro then
+        introInstance = audio.playSFX(found.intro)
+    end
+    return introInstance
+end
+
+function sounds.stopIntro()
+    if introInstance then
+        introInstance:stop()
+        introInstance = nil
     end
 end
 

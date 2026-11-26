@@ -14,10 +14,10 @@
 -- ADDING A ROW is just one more entry in ROW_DEFS; the menu and persistence
 -- code below don't need to change. Replace the examples with your own.
 
-local ROOT = (...):match("^(.*)%.[^.]+$")
-local debuglog = require(ROOT .. ".debuglog")
+local ROOT = (...):match("^(.*)%.[^.]+%.[^.]+$")   -- the library folder (this file lives in src/)
+local debuglog = require(ROOT .. ".src.debuglog")
 local config = require(ROOT .. ".config")
-local audio = require(ROOT .. ".audio")
+local audio = require(ROOT .. ".src.audio")
 
 local other_settings = {}
 

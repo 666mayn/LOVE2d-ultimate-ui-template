@@ -18,9 +18,10 @@ local texture_filter_manager = UI.textures
 local crt_manager = UI.crt
 local loading_screen = UI.loading
 local intro_sequence = UI.intro
+local warmup = UI.warmup
 local sounds = UI.sounds
 -- Also available (not used by this demo): UI.audio, UI.fonts, UI.keybinds,
--- UI.controller, UI.other_settings, UI.widgets, UI.log
+-- UI.controller, UI.other_settings, UI.widgets, UI.log, UI.cursor
 
 local uiScale = 1
 
@@ -123,6 +124,47 @@ end
 -- END YOUR GAME
 -- ==========================================
 
+-- ==========================================
+-- STARTUP WARM-UP
+-- Fonts, the blurred menu background and each menu's layout are built the first time they are
+-- drawn, which freezes the window for a moment. So every screen is drawn once, off-screen, while
+-- the intro video plays (one job every few frames, see ultimate_ui/warmup.lua). Add your own
+-- heavy first-use work (loading art, building canvases ...) with warmup.add("name", fn).
+-- ==========================================
+local warmCanvas
+
+local function warmDraw(fn)
+    local w, h = love.graphics.getDimensions()   -- read now: the window may have been resized since love.load
+    if not warmCanvas or warmCanvas:getWidth() ~= w or warmCanvas:getHeight() ~= h then
+        warmCanvas = love.graphics.newCanvas(w, h)
+    end
+    local depth = love.graphics.getStackDepth()
+    love.graphics.push("all")
+    love.graphics.setCanvas(warmCanvas)
+    love.graphics.clear(0, 0, 0, 1)
+    local ok, err = pcall(fn, w, h)
+    while love.graphics.getStackDepth() > depth do love.graphics.pop() end   -- also undoes a draw that errored half-way
+    if not ok then error(err, 0) end
+end
+
+local function queueWarmup()
+    warmup.add("main menu",     function() warmDraw(function(w, h) ui.drawMainMenu(w, h, 1, nil, nil, uiScale) end) end)
+    warmup.add("pause menu",    function() warmDraw(function(w, h) ui.drawPauseMenu(w, h, 1, nil, nil, uiScale) end) end)
+    warmup.add("settings",      function() warmDraw(function(w, h) ui.drawSettingsMenu(w, h, 1, nil, nil, uiScale) end) end)
+    warmup.add("keyboard menu", function() warmDraw(function(w, h) ui.drawKeyboardMenu(w, h, 1, nil, nil, uiScale) end) end)
+    warmup.add("controller menu", function() warmDraw(function(w, h) ui.drawControllerMenu(w, h, 1, nil, nil, uiScale) end) end)
+    warmup.add("other settings", function() warmDraw(function(w, h) ui.drawOtherSettingsMenu(w, h, 1, nil, nil, uiScale) end) end)
+    warmup.add("texture menu",  function() warmDraw(function(w, h) ui.drawTextureFilterMenu(w, h, 1, nil, nil, uiScale) end) end)
+    warmup.add("loading screen", function() warmDraw(function(w, h) ui.drawLoadingScreen(w, h, uiScale, 1, 2, "LOADING...") end) end)
+    warmup.add("hud",           function() warmDraw(function(w, h) ui.drawHUD({}, w, h, uiScale) end) end)
+end
+
+-- Any key / click / button during the intro skips it and plays the menu click (ui sound).
+local function skipIntro()
+    sounds.playUI()
+    intro_sequence.skip()   -- ends the intro; its onFinish below also cuts the intro sound
+end
+
 function love.load()
     love.graphics.setBackgroundColor(0.06, 0.06, 0.09)
 
@@ -166,12 +208,19 @@ function love.load()
         -- onExit defaults to love.event.quit()
     })
 
-    -- Optional startup videos (config.introVideos). Empty list = skipped.
+    -- Startup intro: every .ogv in ultimate_ui/intro_clips/ (config.introVideos = nil), or none.
+    -- The warm-up jobs run behind it (love.update below); when it ends or is skipped, whatever
+    -- is left runs in one go. With no intro at all, they all run right here.
+    queueWarmup()
     intro_sequence.start(config.introVideos, function()
+        sounds.stopIntro()   -- ended or skipped: cut the intro sound off
+        warmup.finish()
         -- Intro finished (or none): good place to start menu music, e.g.
         -- UI.audio.playMusic("music/menu.ogg")
         ui.resetPopupAnimation("mainMenu")
     end)
+    -- The intro sound (sounds/intro.ogg, or the bundled example_intro.ogg) plays over the clip.
+    if intro_sequence.isActive() then sounds.playIntro() end
 end
 
 function love.resize()
@@ -184,6 +233,7 @@ function love.update(dt)
 
     if intro_sequence.isActive() then
         intro_sequence.update(dt)
+        warmup.update()
         return
     end
     if loading_screen.update(dt) then return end
@@ -245,21 +295,26 @@ function love.draw()
     crt_manager.endFrame()
 end
 
-function love.keypressed(key)
-    if intro_sequence.isActive() then intro_sequence.skip() return end
+function love.keypressed(key, scancode, isrepeat)
+    -- A key still held down from the launch / F8 restart auto-repeats into the new window; that
+    -- must not skip the intro (and the warm-up it covers).
+    if intro_sequence.isActive() then
+        if not isrepeat then skipIntro() end
+        return
+    end
     if loading_screen.getState().isLoading then return end
     if not menu_input.keypressed(key) then gameKeypressed(key) end
 end
 
 function love.mousepressed(x, y, button)
-    if intro_sequence.isActive() then intro_sequence.skip() return end
+    if intro_sequence.isActive() then skipIntro() return end
     if loading_screen.getState().isLoading then return end
     local w, h = love.graphics.getDimensions()
     menu_input.mousepressed(x, y, button, w, h, uiScale)
 end
 
 function love.gamepadpressed(_, button)
-    if intro_sequence.isActive() then intro_sequence.skip() return end
+    if intro_sequence.isActive() then skipIntro() return end
     if loading_screen.getState().isLoading then return end
     if not menu_input.gamepadpressed(button) then gameGamepadpressed(button) end
 end
